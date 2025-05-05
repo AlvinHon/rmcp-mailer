@@ -1,0 +1,8 @@
+{
+    "servers": {
+        "my-mcp-mailbox-local-dev": {
+            "type": "sse",
+            "url": "http://127.0.0.1:3000/sse"
+        }
+    }
+}
