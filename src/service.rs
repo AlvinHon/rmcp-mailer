@@ -4,15 +4,19 @@ use rmcp::{
     tool,
 };
 
-use crate::{mailer::Mailer, request::SendEmailRequest};
+use crate::{config::Config, mailer::Mailer, request::SendEmailRequest};
 
 #[derive(Debug, Clone)]
-pub struct MailerService;
+pub struct MailerService {
+    mailer: Mailer,
+}
 
 #[tool(tool_box)]
 impl MailerService {
-    pub fn new() -> Self {
-        Self
+    pub fn new(config: Config) -> Self {
+        Self {
+            mailer: Mailer::new(config.mailer_config),
+        }
     }
 
     #[tool(description = "Send an simple plain text email")]
@@ -20,7 +24,7 @@ impl MailerService {
         &self,
         #[tool(aggr)] email_request: SendEmailRequest,
     ) -> Result<CallToolResult, rmcp::Error> {
-        Mailer::send(&email_request).await?;
+        self.mailer.send(&email_request).await?;
 
         Ok(CallToolResult::success(vec![Content::text(
             "Email sent successfully!",
@@ -41,6 +45,6 @@ impl ServerHandler for MailerService {
 
 impl Default for MailerService {
     fn default() -> Self {
-        Self::new()
+        Self::new(Config::default())
     }
 }
