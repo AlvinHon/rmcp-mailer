@@ -1,10 +1,11 @@
 use std::fs::read;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub sse_server_host: String,
+    pub db_path: String,
     pub mailer_config: MailerConfig,
 }
 
@@ -22,12 +23,13 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             sse_server_host: "127.0.0.1:3000".to_string(),
+            db_path: "mailer.db".to_string(),
             mailer_config: Default::default(),
         }
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MailerConfig {
     pub mailer_email: String,
     pub smtp_port: u16,
@@ -58,11 +60,12 @@ impl Default for MailerConfig {
 fn test_toml_config() {
     let toml_str = r#"
     sse_server_host = "127.0.0.1:3000"
+    db_path = "mailer.db"
     [mailer_config]
     mailer_email = "test@test.com"
     smtp_port = 2525
     smtp_host = "localhost"
     "#;
 
-    toml::from_str(toml_str).unwrap()
+    toml::from_str::<Config>(toml_str).unwrap();
 }

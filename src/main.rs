@@ -1,6 +1,8 @@
 pub mod config;
+pub mod database;
 pub mod error;
 pub mod mailer;
+pub mod model;
 pub mod request;
 pub mod service;
 

@@ -27,6 +27,14 @@ impl From<lettre::transport::smtp::Error> for MailerError {
     }
 }
 
+impl From<diesel::result::Error> for MailerError {
+    fn from(error: diesel::result::Error) -> Self {
+        MailerError {
+            message: format!("Database error: {}", error),
+        }
+    }
+}
+
 impl From<MailerError> for rmcp::Error {
     fn from(error: MailerError) -> Self {
         rmcp::Error::new(rmcp::model::ErrorCode::INTERNAL_ERROR, error.message, None)
