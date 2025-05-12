@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub sse_server_host: String,
-    pub db_path: String,
+    pub db_config: DatabaseConfig,
     pub mailer_config: MailerConfig,
 }
 
@@ -23,7 +23,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             sse_server_host: "127.0.0.1:3000".to_string(),
-            db_path: "mailer.db".to_string(),
+            db_config: Default::default(),
             mailer_config: Default::default(),
         }
     }
@@ -52,6 +52,19 @@ impl Default for MailerConfig {
             smtp_host: "localhost".to_string(),
             smtp_username: None,
             smtp_password: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DatabaseConfig {
+    pub db_path: String,
+}
+
+impl Default for DatabaseConfig {
+    fn default() -> Self {
+        Self {
+            db_path: "mailer.db".to_string(),
         }
     }
 }

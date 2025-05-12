@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use diesel::prelude::*;
 
 pub(crate) mod schema {
@@ -50,6 +52,7 @@ pub(crate) mod schema {
 }
 
 use crate::{
+    config::DatabaseConfig,
     error::MailerError,
     model::{group::Group, recipient::Recipient, recipient_group::RecipientGroup},
 };
@@ -59,9 +62,9 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn new(db_path: &str) -> Self {
+    pub fn new(config: DatabaseConfig) -> Self {
         let mut connection =
-            SqliteConnection::establish(db_path).expect("Error connecting to database");
+            SqliteConnection::establish(&config.db_path).expect("Error connecting to database");
 
         for table_sql in schema::create_all_tables_sqls() {
             diesel::sql_query(table_sql)
@@ -135,6 +138,15 @@ impl Database {
             .map_err(MailerError::from)
     }
 
+    pub fn find_recipient_by_email(&mut self, email_str: String) -> Result<Recipient, MailerError> {
+        use schema::recipients::dsl::*;
+
+        recipients
+            .filter(email.eq(email_str))
+            .first::<Recipient>(&mut self.connection)
+            .map_err(MailerError::from)
+    }
+
     pub fn new_group(&mut self, group_name: String) -> Result<Group, MailerError> {
         use schema::groups::dsl::*;
         diesel::insert_into(groups)
@@ -160,6 +172,15 @@ impl Database {
         diesel::delete(groups.filter(id.eq(group_id)))
             .returning(Group::as_returning())
             .get_result(&mut self.connection)
+            .map_err(MailerError::from)
+    }
+
+    pub fn find_group_by_name(&mut self, group_name: String) -> Result<Group, MailerError> {
+        use schema::groups::dsl::*;
+
+        groups
+            .filter(name.eq(group_name))
+            .first::<Group>(&mut self.connection)
             .map_err(MailerError::from)
     }
 
@@ -195,12 +216,25 @@ impl Database {
     }
 }
 
+impl Debug for Database {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Database")
+            .field("connection", &"SqliteConnection")
+            .finish()
+    }
+}
+
+unsafe impl Send for Database {}
+unsafe impl Sync for Database {}
+
 #[test]
 fn test_database() {
     const DB_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/test.db");
     _ = std::fs::remove_file(DB_PATH);
 
-    let mut db = Database::new(DB_PATH);
+    let mut db = Database::new(DatabaseConfig {
+        db_path: DB_PATH.to_string(),
+    });
 
     // Test that the database is empty
     assert!(db.list_recipients().unwrap().is_empty());

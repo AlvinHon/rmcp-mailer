@@ -40,3 +40,9 @@ impl From<MailerError> for rmcp::Error {
         rmcp::Error::new(rmcp::model::ErrorCode::INTERNAL_ERROR, error.message, None)
     }
 }
+
+pub fn new_rmcp_error(message: &str) -> MailerError {
+    MailerError {
+        message: format!("RMCP error: {}", message),
+    }
+}

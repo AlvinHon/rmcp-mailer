@@ -1,9 +1,8 @@
+use crate::{config::MailerConfig, error::MailerError, request::SendEmailRequest};
 use lettre::{
     AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor, message::header::ContentType,
     transport::smtp::authentication::Credentials,
 };
-
-use crate::{config::MailerConfig, error::MailerError, request::SendEmailRequest};
 
 #[derive(Debug, Clone)]
 pub struct Mailer {
