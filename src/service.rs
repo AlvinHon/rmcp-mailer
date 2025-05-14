@@ -8,8 +8,11 @@ use rmcp::{
 use tokio::sync::Mutex;
 
 use crate::{
-    config::Config, database::Database, error::new_rmcp_error, mailer::Mailer,
-    request::SendEmailRequest,
+    config::Config,
+    database::Database,
+    error::new_rmcp_error,
+    mailer::Mailer,
+    request::{SendEmailRequest, SendGroupEmailRequest},
 };
 
 #[derive(Debug, Clone)]
@@ -36,6 +39,33 @@ impl MailerService {
 
         Ok(CallToolResult::success(vec![Content::text(
             "Email sent successfully!",
+        )]))
+    }
+
+    #[tool(description = "Send an email to a group")]
+    async fn send_email_to_group(
+        &self,
+        #[tool(aggr)] email_request: SendGroupEmailRequest,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        let mut db = self.db.lock().await;
+        let group = db
+            .find_group_by_name(email_request.group_name.clone())
+            .map_err(|_| new_rmcp_error("Group not found"))?;
+
+        let recipients = db.find_recipients_by_group_id(group.id)?;
+        let to = recipients.into_iter().map(|r| r.email).collect::<Vec<_>>();
+
+        let request = SendEmailRequest {
+            to,
+            reply_to: email_request.reply_to,
+            subject: email_request.subject,
+            body: email_request.body,
+        };
+
+        self.mailer.send(&request).await?;
+
+        Ok(CallToolResult::success(vec![Content::text(
+            "Email sent to group successfully!",
         )]))
     }
 

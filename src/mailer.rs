@@ -1,4 +1,8 @@
-use crate::{config::MailerConfig, error::MailerError, request::SendEmailRequest};
+use crate::{
+    config::MailerConfig,
+    error::{MailerError, new_rmcp_error},
+    request::SendEmailRequest,
+};
 use lettre::{
     AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor, message::header::ContentType,
     transport::smtp::authentication::Credentials,
@@ -28,10 +32,20 @@ impl Mailer {
 
     fn build_email(&self, email_request: &SendEmailRequest) -> Result<Message, MailerError> {
         let mut msg_builder = Message::builder()
-            .from(self.config.mailer_email.parse().unwrap())
-            .to(email_request.to.parse().unwrap())
+            .from(
+                self.config
+                    .mailer_email
+                    .parse()
+                    .map_err(|_| new_rmcp_error("Invalid sender email"))?,
+            )
             .subject(&email_request.subject)
             .header(ContentType::TEXT_PLAIN);
+
+        for recipient in &email_request.to {
+            msg_builder = msg_builder.to(recipient
+                .parse()
+                .map_err(|_| new_rmcp_error("Invalid recipient email"))?);
+        }
 
         if let Some(reply_to) = &email_request.reply_to {
             msg_builder = msg_builder.reply_to(reply_to.parse().unwrap());

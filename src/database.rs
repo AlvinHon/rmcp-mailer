@@ -214,6 +214,18 @@ impl Database {
             .map_err(MailerError::from)?;
         Ok(())
     }
+
+    pub fn find_recipients_by_group_id(
+        &mut self,
+        group_id: i32,
+    ) -> Result<Vec<Recipient>, MailerError> {
+        schema::group_recipients::table
+            .filter(schema::group_recipients::group_id.eq(group_id))
+            .inner_join(schema::recipients::table)
+            .select(Recipient::as_select())
+            .load::<Recipient>(&mut self.connection)
+            .map_err(MailerError::from)
+    }
 }
 
 impl Debug for Database {
