@@ -25,6 +25,14 @@ pub(crate) mod schema {
         }
     }
 
+    diesel::table! {
+        templates {
+            id -> Integer,
+            name -> Text,
+            format_string -> Text,
+        }
+    }
+
     diesel::joinable!(group_recipients -> groups (group_id));
     diesel::joinable!(group_recipients -> recipients (recipient_id));
 
@@ -47,6 +55,11 @@ pub(crate) mod schema {
                 FOREIGN KEY (group_id) REFERENCES groups(id), 
                 FOREIGN KEY (recipient_id) REFERENCES recipients(id)
             );",
+            "CREATE TABLE IF NOT EXISTS templates (
+                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, 
+                name TEXT NOT NULL UNIQUE, 
+                format_string TEXT NOT NULL
+            );",
         ]
     }
 }
@@ -54,7 +67,9 @@ pub(crate) mod schema {
 use crate::{
     config::DatabaseConfig,
     error::MailerError,
-    model::{group::Group, recipient::Recipient, recipient_group::RecipientGroup},
+    model::{
+        group::Group, recipient::Recipient, recipient_group::RecipientGroup, template::Template,
+    },
 };
 
 pub struct Database {
@@ -102,6 +117,14 @@ impl Database {
             .inner_join(schema::recipients::table)
             .select(Recipient::as_select())
             .load::<Recipient>(&mut self.connection)
+            .map_err(MailerError::from)
+    }
+
+    pub fn list_templates(&mut self) -> Result<Vec<Template>, MailerError> {
+        use schema::templates::dsl::*;
+
+        templates
+            .load::<Template>(&mut self.connection)
             .map_err(MailerError::from)
     }
 
@@ -171,6 +194,57 @@ impl Database {
 
         diesel::delete(groups.filter(id.eq(group_id)))
             .returning(Group::as_returning())
+            .get_result(&mut self.connection)
+            .map_err(MailerError::from)
+    }
+
+    pub fn find_template_by_name(
+        &mut self,
+        template_name: String,
+    ) -> Result<Template, MailerError> {
+        use schema::templates::dsl::*;
+
+        templates
+            .filter(name.eq(template_name))
+            .first::<Template>(&mut self.connection)
+            .map_err(MailerError::from)
+    }
+
+    pub fn new_template(
+        &mut self,
+        name: String,
+        format_string: String,
+    ) -> Result<Template, MailerError> {
+        diesel::insert_into(schema::templates::table)
+            .values((
+                schema::templates::name.eq(name),
+                schema::templates::format_string.eq(format_string),
+            ))
+            .returning(Template::as_returning())
+            .get_result(&mut self.connection)
+            .map_err(MailerError::from)
+    }
+
+    pub fn update_template(
+        &mut self,
+        template_id: i32,
+        new_name: String,
+        new_format_string: String,
+    ) -> Result<Template, MailerError> {
+        use schema::templates::dsl::*;
+
+        diesel::update(templates.filter(id.eq(template_id)))
+            .set((name.eq(new_name), format_string.eq(new_format_string)))
+            .returning(Template::as_returning())
+            .get_result(&mut self.connection)
+            .map_err(MailerError::from)
+    }
+
+    pub fn remove_template(&mut self, template_id: i32) -> Result<Template, MailerError> {
+        use schema::templates::dsl::*;
+
+        diesel::delete(templates.filter(id.eq(template_id)))
+            .returning(Template::as_returning())
             .get_result(&mut self.connection)
             .map_err(MailerError::from)
     }
