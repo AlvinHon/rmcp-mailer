@@ -73,6 +73,7 @@ impl Default for DatabaseConfig {
 fn test_toml_config() {
     let toml_str = r#"
     sse_server_host = "127.0.0.1:3000"
+    [db_config]
     db_path = "mailer.db"
     [mailer_config]
     mailer_email = "test@test.com"
