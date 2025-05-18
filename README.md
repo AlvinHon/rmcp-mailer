@@ -10,6 +10,111 @@ TODOs:
 - [ ] support more request types, e.g. schedule meetings.
 - [ ] add recipient management
 
+## Usage
+
+This section describes some use cases to show that the MCP server is more interesting than the traditional email programs.
+
+
+Traditional email programs require the user know how to input the data to the program in order to work (e.g. sending an email). Here, we can just use simple words and the LLM will help us to create the input data so that it can be fitted into the "program".
+
+**Example 1:**
+
+```text
+send an formal email to Bob (bob@domain.com). invite him to my friend Chris's wedding. closing with my name "Alvin"
+```
+
+<details>
+<summary>Sample Output</summary>
+
+LLM:
+```text
+Email sent successfully!
+```
+
+SMTP:
+```text
+From: test@test.com
+Subject: Invitation to Chris's Wedding
+Content-Type: text/plain; charset=utf-8
+To: bob@domain.com
+Content-Transfer-Encoding: quoted-printable
+Date: Sun, 18 May 2025 12:59:33 +0000
+X-Peer: ('127.0.0.1', 58769)
+
+Dear Bob,
+
+I hope this message finds you well. I am writing to formally invite you to =
+my friend Chris's wedding. It would be a pleasure to have you join us for t=
+his special occasion.
+
+Please let me know if you are able to attend.
+
+Best regards,
+Alvin
+```
+
+</details>
+
+
+**Example 2:**
+
+```text
+add a email template named "greeting". It is a greeting to a new customer.
+```
+
+<details>
+<summary>Sample Output</summary>
+
+LLM:
+```text
+Email template created successfully!
+```
+
+Template:
+```text
+Hello {customer_name},
+
+Welcome to our service! We are excited to have you as a new customer.
+
+Best regards,
+The Team
+```
+
+</details>
+
+```text
+send greeting email to customer "abc"
+```
+
+<details>
+<summary>Sample Output</summary>
+
+LLM:
+```text
+Email sent with template successfully!
+```
+
+SMTP:
+```text
+From: test@test.com
+Subject: Welcome to our service!
+Content-Type: text/plain; charset=utf-8
+To: abc@abc.com
+Content-Transfer-Encoding: 7bit
+Date: Sun, 18 May 2025 12:28:52 +0000
+X-Peer: ('127.0.0.1', 58333)
+
+Hello abc,
+
+Welcome to our service! We are excited to have you as a new customer.
+
+Best regards,
+The Team
+```
+
+</details>
+
+
 ## Local Run for Testing
 
 This section describes how to run the MCP server locally for testing purposes. 
