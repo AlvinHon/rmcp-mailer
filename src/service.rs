@@ -69,8 +69,10 @@ impl MailerService {
         )]))
     }
 
-    #[tool(description = "Get information from phone book")]
-    async fn get_phone_book(&self) -> Result<CallToolResult, rmcp::Error> {
+    #[tool(
+        description = "Describe the phone book. It includes the information about the recipients and groups"
+    )]
+    async fn describe_phone_book(&self) -> Result<CallToolResult, rmcp::Error> {
         let (recipients, groups) = {
             let mut db = self.db.lock().await;
             let recipients = db.list_recipients()?;
@@ -79,13 +81,16 @@ impl MailerService {
             (recipients, groups)
         };
 
-        let mut result = vec![];
-        for recipient in recipients {
-            result.push(Content::text(format!("Recipient: {}", recipient.email)));
-        }
-        for group in groups {
-            result.push(Content::text(format!("Group: {}", group.name)));
-        }
+        let mut result = recipients
+            .into_iter()
+            .map(|r| Content::text(format!("Recipient: {r:?}")))
+            .collect::<Vec<_>>();
+        result.extend(
+            groups
+                .into_iter()
+                .map(|g| Content::text(format!("Group: {g:?}")))
+                .collect::<Vec<_>>(),
+        );
 
         Ok(CallToolResult::success(result))
     }
@@ -141,6 +146,63 @@ impl MailerService {
         Ok(CallToolResult::success(vec![Content::text(
             "Recipient added to group successfully!",
         )]))
+    }
+
+    #[tool(description = "Describe email templates.")]
+    async fn describe_email_template(&self) -> Result<CallToolResult, rmcp::Error> {
+        let templates = {
+            let mut db = self.db.lock().await;
+            db.list_templates()?
+        };
+
+        let result = templates
+            .into_iter()
+            .map(|t| Content::text(format!("Template: {t:?}")))
+            .collect::<Vec<_>>();
+
+        Ok(CallToolResult::success(result))
+    }
+
+    #[tool(description = "Add a new email template")]
+    async fn add_email_template(
+        &self,
+        #[tool(param)]
+        #[schemars(description = "Template name")]
+        template_name: String,
+        #[tool(param)]
+        #[schemars(
+            description = "Template format string with placeholders in format {<placeholder_name>}."
+        )]
+        format_string: String,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        self.db
+            .lock()
+            .await
+            .new_template(template_name, format_string)?;
+
+        Ok(CallToolResult::success(vec![Content::text(
+            "Email template created successfully!",
+        )]))
+    }
+
+    #[tool(description = "Get email template")]
+    async fn get_email_template(
+        &self,
+        #[tool(param)]
+        #[schemars(description = "Template name")]
+        template_name: String,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        let template = self
+            .db
+            .lock()
+            .await
+            .find_template_by_name(template_name.clone())
+            .map_err(|_| new_rmcp_error("Template not found"))?;
+
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "Template: {}",
+            template.format_string
+        ))]))
     }
 }
 
