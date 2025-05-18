@@ -12,7 +12,7 @@ use crate::{
     database::Database,
     error::new_rmcp_error,
     mailer::Mailer,
-    request::{SendEmailRequest, SendGroupEmailRequest},
+    request::{SendEmailRequest, SendEmailWithTemplateRequest, SendGroupEmailRequest},
 };
 
 #[derive(Debug, Clone)]
@@ -66,6 +66,34 @@ impl MailerService {
 
         Ok(CallToolResult::success(vec![Content::text(
             "Email sent to group successfully!",
+        )]))
+    }
+
+    #[tool(description = "Send an email with template")]
+    async fn send_email_with_template(
+        &self,
+        #[tool(aggr)] email_request: SendEmailWithTemplateRequest,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        let mut db = self.db.lock().await;
+        let res_template = db
+            .find_template_by_name(email_request.template_name.clone())
+            .map_err(|_| new_rmcp_error("Template not found"))?;
+
+        let body = res_template
+            .format(email_request.template_data.clone())
+            .map_err(|e| new_rmcp_error(&e))?;
+
+        let request = SendEmailRequest {
+            to: email_request.to,
+            reply_to: email_request.reply_to,
+            subject: email_request.subject,
+            body,
+        };
+
+        self.mailer.send(&request).await?;
+
+        Ok(CallToolResult::success(vec![Content::text(
+            "Email sent with template successfully!",
         )]))
     }
 
