@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, vec};
 
 use rmcp::{
     ServerHandler,
@@ -12,7 +12,10 @@ use crate::{
     database::Database,
     error::new_rmcp_error,
     mailer::Mailer,
-    request::{SendEmailRequest, SendEmailWithTemplateRequest, SendGroupEmailRequest},
+    request::{
+        ManageRecipientsRequest, SendEmailRequest, SendEmailWithTemplateRequest,
+        SendGroupEmailRequest,
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -137,18 +140,38 @@ impl MailerService {
         )]))
     }
 
-    #[tool(description = "Add a new recipient")]
-    async fn add_recipient(
+    #[tool(description = "Recipient management: add, remove, update")]
+    async fn manage_recipient(
         &self,
-        #[tool(param)]
-        #[schemars(description = "recipient email")]
-        email: String,
+        #[tool(aggr)] manage_recipient_request: ManageRecipientsRequest,
     ) -> Result<CallToolResult, rmcp::Error> {
-        self.db.lock().await.new_recipient(email)?;
+        let mut db = self.db.lock().await;
 
-        Ok(CallToolResult::success(vec![Content::text(
-            "Recipient added successfully!",
-        )]))
+        let result_message = match manage_recipient_request {
+            ManageRecipientsRequest::Add(add_request) => {
+                db.new_recipient(add_request.email)?;
+
+                vec![Content::text("Recipient added successfully!")]
+            }
+            ManageRecipientsRequest::Remove(remove_request) => {
+                let recipient = db
+                    .find_recipient_by_email(remove_request.email.clone())
+                    .map_err(|_| new_rmcp_error("Recipient not found"))?;
+                db.remove_recipient(recipient.id)?;
+
+                vec![Content::text("Recipient removed successfully!")]
+            }
+            ManageRecipientsRequest::Update(update_request) => {
+                let recipient = db
+                    .find_recipient_by_email(update_request.email.clone())
+                    .map_err(|_| new_rmcp_error("Recipient not found"))?;
+                db.update_recipient(recipient.id, update_request.new_email)?;
+
+                vec![Content::text("Recipient updated successfully!")]
+            }
+        };
+
+        Ok(CallToolResult::success(result_message))
     }
 
     #[tool(description = "Add a recipient to the mail group")]

@@ -26,3 +26,26 @@ pub struct SendEmailWithTemplateRequest {
     pub template_name: String,
     pub template_data: HashMap<String, String>,
 }
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub enum ManageRecipientsRequest {
+    Add(AddRecipientRequest),
+    Remove(RemoveRecipientRequest),
+    Update(UpdateRecipientRequest),
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct AddRecipientRequest {
+    pub email: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct UpdateRecipientRequest {
+    pub email: String,
+    pub new_email: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct RemoveRecipientRequest {
+    pub email: String,
+}
