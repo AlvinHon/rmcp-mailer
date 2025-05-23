@@ -12,6 +12,7 @@ use crate::{
     database::Database,
     error::new_rmcp_error,
     mailer::Mailer,
+    model::recipient::Recipient,
     request::{
         ManageRecipientsRequest, SendEmailRequest, SendEmailWithTemplateRequest,
         SendGroupEmailRequest,
@@ -149,23 +150,29 @@ impl MailerService {
 
         let result_message = match manage_recipient_request {
             ManageRecipientsRequest::Add(add_request) => {
-                db.new_recipient(add_request.email)?;
+                db.new_recipient(add_request.name, add_request.email)?;
 
                 vec![Content::text("Recipient added successfully!")]
             }
             ManageRecipientsRequest::Remove(remove_request) => {
-                let recipient = db
+                let recipient_id = db
                     .find_recipient_by_email(remove_request.email.clone())
+                    .map(|r| r.id)
                     .map_err(|_| new_rmcp_error("Recipient not found"))?;
-                db.remove_recipient(recipient.id)?;
+                db.remove_recipient(recipient_id)?;
 
                 vec![Content::text("Recipient removed successfully!")]
             }
             ManageRecipientsRequest::Update(update_request) => {
                 let recipient = db
                     .find_recipient_by_email(update_request.email.clone())
+                    .map(|r| Recipient {
+                        id: r.id,
+                        name: update_request.new_name.unwrap_or(r.name),
+                        email: update_request.new_email.unwrap_or(r.email),
+                    })
                     .map_err(|_| new_rmcp_error("Recipient not found"))?;
-                db.update_recipient(recipient.id, update_request.new_email)?;
+                db.update_recipient(recipient.id, recipient.name, recipient.email)?;
 
                 vec![Content::text("Recipient updated successfully!")]
             }

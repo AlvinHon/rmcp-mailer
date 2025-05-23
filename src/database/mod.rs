@@ -68,16 +68,19 @@ mod tests {
     }
 
     fn test_script_for_recipient(db: &mut Database) -> Result<(), MailerError> {
-        let nr = db.new_recipient("me@domain.com".to_string())?;
+        let nr = db.new_recipient("me".to_string(), "me@domain.com".to_string())?;
         assert!(!db.list_recipients()?.is_empty());
 
         // Test for updating recipient
-        let updated_recipient = db.update_recipient(nr.id, "me2@domain.com".to_string())?;
+        let updated_recipient =
+            db.update_recipient(nr.id, "me2".to_string(), "me2@domain.com".to_string())?;
+        assert_eq!(updated_recipient.name, "me2");
         assert_eq!(updated_recipient.email, "me2@domain.com");
         assert_eq!(updated_recipient.id, nr.id);
 
         // Test for removing recipient
         let removed_recipient = db.remove_recipient(nr.id)?;
+        assert_eq!(removed_recipient.name, "me2");
         assert_eq!(removed_recipient.id, nr.id);
         assert_eq!(removed_recipient.email, "me2@domain.com");
         assert!(db.list_recipients()?.is_empty());
@@ -108,7 +111,7 @@ mod tests {
     /// 2. add recipient to group
     /// 3. remove recipient from group
     fn test_script_for_recipient_group(db: &mut Database) -> Result<(), MailerError> {
-        let nr2 = db.new_recipient("someone@domain.com".to_string())?;
+        let nr2 = db.new_recipient("Some One".to_string(), "someone@domain.com".to_string())?;
         let ng2 = db.new_group("test3".to_string())?;
         db.add_recipient_to_group(ng2.id, nr2.id)?;
         let res = db.list_recipients_in_group(ng2.id)?;
@@ -117,6 +120,7 @@ mod tests {
             res[0],
             Recipient {
                 id: nr2.id,
+                name: nr2.name.clone(),
                 email: nr2.email.clone(),
             }
         );

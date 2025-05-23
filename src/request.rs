@@ -36,13 +36,17 @@ pub enum ManageRecipientsRequest {
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct AddRecipientRequest {
+    pub name: String,
     pub email: String,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct UpdateRecipientRequest {
     pub email: String,
-    pub new_email: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub new_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub new_email: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]

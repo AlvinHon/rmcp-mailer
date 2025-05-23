@@ -1,6 +1,7 @@
 diesel::table! {
     recipients {
         id -> Integer,
+        name -> Text,
         email -> Text,
     }
 }
@@ -36,6 +37,7 @@ pub(crate) fn create_all_tables_sqls() -> Vec<&'static str> {
     vec![
         "CREATE TABLE IF NOT EXISTS recipients (
                 id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, 
+                name TEXT NOT NULL,
                 email TEXT NOT NULL UNIQUE
             );",
         "CREATE TABLE IF NOT EXISTS groups (

@@ -10,5 +10,6 @@ use crate::database::schema::recipients;
 #[diesel(primary_key(id))]
 pub struct Recipient {
     pub id: i32,
+    pub name: String,
     pub email: String,
 }

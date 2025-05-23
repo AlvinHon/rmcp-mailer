@@ -21,11 +21,15 @@ impl Database {
             .map_err(MailerError::from)
     }
 
-    pub fn new_recipient(&mut self, email_str: String) -> Result<Recipient, MailerError> {
+    pub fn new_recipient(
+        &mut self,
+        name_str: String,
+        email_str: String,
+    ) -> Result<Recipient, MailerError> {
         use schema::recipients::dsl::*;
 
         diesel::insert_into(recipients)
-            .values(email.eq(email_str))
+            .values((name.eq(name_str), email.eq(email_str)))
             .returning(Recipient::as_returning())
             .get_result(&mut self.connection)
             .map_err(MailerError::from)
@@ -34,12 +38,13 @@ impl Database {
     pub fn update_recipient(
         &mut self,
         recipient_id: i32,
+        new_name: String,
         new_email: String,
     ) -> Result<Recipient, MailerError> {
         use schema::recipients::dsl::*;
 
         diesel::update(recipients.filter(id.eq(recipient_id)))
-            .set(email.eq(new_email))
+            .set((name.eq(new_name), email.eq(new_email)))
             .returning(Recipient::as_returning())
             .get_result(&mut self.connection)
             .map_err(MailerError::from)
