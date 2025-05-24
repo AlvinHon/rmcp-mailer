@@ -28,6 +28,30 @@ pub struct SendEmailWithTemplateRequest {
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub enum ManageGroupsRequest {
+    Add(AddGroupRequest),
+    Remove(RemoveGroupRequest),
+    Update(UpdateGroupRequest),
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct AddGroupRequest {
+    pub name: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct UpdateGroupRequest {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub new_name: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct RemoveGroupRequest {
+    pub name: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub enum ManageRecipientsRequest {
     Add(AddRecipientRequest),
     Remove(RemoveRecipientRequest),

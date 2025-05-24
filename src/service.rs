@@ -14,8 +14,8 @@ use crate::{
     mailer::Mailer,
     model::recipient::Recipient,
     request::{
-        ManageRecipientsRequest, SendEmailRequest, SendEmailWithTemplateRequest,
-        SendGroupEmailRequest,
+        ManageGroupsRequest, ManageRecipientsRequest, SendEmailRequest,
+        SendEmailWithTemplateRequest, SendGroupEmailRequest,
     },
 };
 
@@ -127,18 +127,41 @@ impl MailerService {
         Ok(CallToolResult::success(result))
     }
 
-    #[tool(description = "Add a new mail group")]
-    async fn add_mail_group(
+    #[tool(description = "Manage mail groups: add, remove, update")]
+    async fn manage_mail_group(
         &self,
-        #[tool(param)]
-        #[schemars(description = "mail group name")]
-        group_name: String,
+        #[tool(aggr)] manage_group_request: ManageGroupsRequest,
     ) -> Result<CallToolResult, rmcp::Error> {
-        self.db.lock().await.new_group(group_name)?;
+        let mut db = self.db.lock().await;
 
-        Ok(CallToolResult::success(vec![Content::text(
-            "Recipient group created successfully!",
-        )]))
+        let result_message = match manage_group_request {
+            ManageGroupsRequest::Add(add_request) => {
+                db.new_group(add_request.name)?;
+
+                vec![Content::text("Group added successfully!")]
+            }
+            ManageGroupsRequest::Remove(remove_request) => {
+                let group_id = db
+                    .find_group_by_name(remove_request.name.clone())
+                    .map(|g| g.id)
+                    .map_err(|_| new_rmcp_error("Group not found"))?;
+                db.remove_group(group_id)?;
+
+                vec![Content::text("Group removed successfully!")]
+            }
+            ManageGroupsRequest::Update(update_request) => {
+                let group = db
+                    .find_group_by_name(update_request.name.clone())
+                    .map(|g| g.id)
+                    .map_err(|_| new_rmcp_error("Group not found"))?;
+                let new_name = update_request.new_name.unwrap_or(update_request.name);
+                db.update_group(group, new_name)?;
+
+                vec![Content::text("Group updated successfully!")]
+            }
+        };
+
+        Ok(CallToolResult::success(result_message))
     }
 
     #[tool(description = "Recipient management: add, remove, update")]
