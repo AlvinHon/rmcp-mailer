@@ -77,3 +77,30 @@ pub struct UpdateRecipientRequest {
 pub struct RemoveRecipientRequest {
     pub email: String,
 }
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub enum ManageTemplatesRequest {
+    Add(AddTemplateRequest),
+    Remove(RemoveTemplateRequest),
+    Update(UpdateTemplateRequest),
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct AddTemplateRequest {
+    pub name: String,
+    pub format_string: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct UpdateTemplateRequest {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub new_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub new_format_string: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct RemoveTemplateRequest {
+    pub name: String,
+}

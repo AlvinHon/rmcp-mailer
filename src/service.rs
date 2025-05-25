@@ -12,9 +12,9 @@ use crate::{
     database::Database,
     error::new_rmcp_error,
     mailer::Mailer,
-    model::recipient::Recipient,
+    model::{recipient::Recipient, template::Template},
     request::{
-        ManageGroupsRequest, ManageRecipientsRequest, SendEmailRequest,
+        ManageGroupsRequest, ManageRecipientsRequest, ManageTemplatesRequest, SendEmailRequest,
         SendEmailWithTemplateRequest, SendGroupEmailRequest,
     },
 };
@@ -244,28 +244,6 @@ impl MailerService {
         Ok(CallToolResult::success(result))
     }
 
-    #[tool(description = "Add a new email template")]
-    async fn add_email_template(
-        &self,
-        #[tool(param)]
-        #[schemars(description = "Template name")]
-        template_name: String,
-        #[tool(param)]
-        #[schemars(
-            description = "Template format string with placeholders in format {<placeholder_name>}."
-        )]
-        format_string: String,
-    ) -> Result<CallToolResult, rmcp::Error> {
-        self.db
-            .lock()
-            .await
-            .new_template(template_name, format_string)?;
-
-        Ok(CallToolResult::success(vec![Content::text(
-            "Email template created successfully!",
-        )]))
-    }
-
     #[tool(description = "Get email template")]
     async fn get_email_template(
         &self,
@@ -284,6 +262,48 @@ impl MailerService {
             "Template: {}",
             template.format_string
         ))]))
+    }
+
+    #[tool(description = "Manage email template: add, remove, update")]
+    async fn manage_email_template(
+        &self,
+        #[tool(aggr)] manage_template_request: ManageTemplatesRequest,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        let mut db = self.db.lock().await;
+
+        let result_message = match manage_template_request {
+            ManageTemplatesRequest::Add(add_request) => {
+                db.new_template(add_request.name, add_request.format_string)?;
+
+                vec![Content::text("Email template added successfully!")]
+            }
+            ManageTemplatesRequest::Remove(remove_request) => {
+                let template_id = db
+                    .find_template_by_name(remove_request.name.clone())
+                    .map(|t| t.id)
+                    .map_err(|_| new_rmcp_error("Template not found"))?;
+
+                db.remove_template(template_id)?;
+
+                vec![Content::text("Email template removed successfully!")]
+            }
+            ManageTemplatesRequest::Update(update_request) => {
+                let template = db
+                    .find_template_by_name(update_request.name.clone())
+                    .map(|t| Template {
+                        id: t.id,
+                        name: update_request.new_name.unwrap_or(t.name),
+                        format_string: update_request.new_format_string.unwrap_or(t.format_string),
+                    })
+                    .map_err(|_| new_rmcp_error("Template not found"))?;
+
+                db.update_template(template.id, template.name, template.format_string)?;
+
+                vec![Content::text("Email template updated successfully!")]
+            }
+        };
+
+        Ok(CallToolResult::success(result_message))
     }
 }
 
