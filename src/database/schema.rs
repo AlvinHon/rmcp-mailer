@@ -28,10 +28,21 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    email_history {
+        id -> Integer,
+        recipient_id -> Integer,
+        group_id -> Nullable<Integer>,
+        subject -> Text,
+        body -> Text,
+        sent_at -> Timestamp,
+    }
+}
+
 diesel::joinable!(group_recipients -> groups (group_id));
 diesel::joinable!(group_recipients -> recipients (recipient_id));
 
-diesel::allow_tables_to_appear_in_same_query!(recipients, groups, group_recipients,);
+diesel::allow_tables_to_appear_in_same_query!(recipients, groups, group_recipients, email_history);
 
 pub(crate) fn create_all_tables_sqls() -> Vec<&'static str> {
     vec![
@@ -55,6 +66,16 @@ pub(crate) fn create_all_tables_sqls() -> Vec<&'static str> {
                 id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, 
                 name TEXT NOT NULL UNIQUE, 
                 format_string TEXT NOT NULL
+            );",
+        "CREATE TABLE IF NOT EXISTS email_history (
+                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, 
+                recipient_id INTEGER NOT NULL, 
+                group_id INTEGER, 
+                subject TEXT NOT NULL, 
+                body TEXT NOT NULL, 
+                sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (recipient_id) REFERENCES recipients(id), 
+                FOREIGN KEY (group_id) REFERENCES groups(id)
             );",
     ]
 }

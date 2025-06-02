@@ -1,3 +1,4 @@
+pub(crate) mod email_record;
 pub(crate) mod group;
 pub(crate) mod recipient;
 pub(crate) mod recipient_group;

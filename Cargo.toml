@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-diesel = { version = "2.2.10", features = ["sqlite", "returning_clauses_for_sqlite_3_35"] }
+chrono = { version = "0.4.20", default-features = false, features = ["clock", "std"] }
+diesel = { version = "2.2.10", features = ["sqlite", "chrono", "returning_clauses_for_sqlite_3_35"] }
 lettre = { version = "0.11.15", features = ["tokio1", "tokio1-native-tls"]}
 new_string_template = "1.5.3"
 rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk", branch = "main",  features = ["server", "transport-sse-server"] }
