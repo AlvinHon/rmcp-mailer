@@ -63,6 +63,7 @@ mod tests {
         test_script_for_recipient_group(&mut db)
             .expect("Failed to run test_script_for_recipient_group");
         test_script_for_template(&mut db).expect("Failed to run test_script_for_template");
+        test_script_for_email_record(&mut db).expect("Failed to run test_script_for_email_record");
 
         drop(db);
         std::fs::remove_file(DB_PATH).expect("Failed to remove test.db");
@@ -150,6 +151,34 @@ mod tests {
         assert_eq!(removed_template.name, "test2");
         assert!(db.list_templates()?.is_empty());
 
+        Ok(())
+    }
+
+    fn test_script_for_email_record(db: &mut Database) -> Result<(), MailerError> {
+        let nr = db.new_recipient("someone2".to_string(), "someone2@domain.com".to_string())?;
+        let ng = db.new_group("somegroup2".to_string())?;
+        db.add_recipient_to_group(ng.id, nr.id)?;
+        db.add_email_record(
+            nr.id,
+            Some(ng.id),
+            "Test Subject".to_string(),
+            "Test Body".to_string(),
+        )?;
+        let records = db.list_email_records_by_time(
+            chrono::Utc::now()
+                .checked_sub_signed(chrono::Duration::minutes(1))
+                .unwrap()
+                .naive_utc(),
+            chrono::Utc::now()
+                .naive_utc()
+                .checked_add_signed(chrono::Duration::minutes(1))
+                .unwrap(),
+        )?;
+        assert!(!records.is_empty());
+        assert_eq!(records[0].recipient_id, nr.id);
+        assert_eq!(records[0].group_id, Some(ng.id));
+        assert_eq!(records[0].subject, "Test Subject");
+        assert_eq!(records[0].body, "Test Body");
         Ok(())
     }
 }
