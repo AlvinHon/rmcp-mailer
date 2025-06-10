@@ -1,6 +1,7 @@
 pub(crate) mod email_record;
 pub(crate) mod group;
 pub(crate) mod recipient;
+pub(crate) mod recipient_email_record;
 pub(crate) mod recipient_group;
 pub(crate) mod schema;
 pub(crate) mod template;
@@ -155,16 +156,15 @@ mod tests {
     }
 
     fn test_script_for_email_record(db: &mut Database) -> Result<(), MailerError> {
+        let new_email_record =
+            db.add_email_record("Test Subject".to_string(), "Test Body".to_string())?;
+        assert_eq!(new_email_record.subject, "Test Subject");
+        assert_eq!(new_email_record.body, "Test Body");
+
         let nr = db.new_recipient("someone2".to_string(), "someone2@domain.com".to_string())?;
-        let ng = db.new_group("somegroup2".to_string())?;
-        db.add_recipient_to_group(ng.id, nr.id)?;
-        db.add_email_record(
-            nr.id,
-            Some(ng.id),
-            "Test Subject".to_string(),
-            "Test Body".to_string(),
-        )?;
-        let records = db.list_email_records_by_time(
+        db.add_recipient_email_record(new_email_record.id, nr.id)?;
+
+        let start_end_time = (
             chrono::Utc::now()
                 .checked_sub_signed(chrono::Duration::minutes(1))
                 .unwrap()
@@ -173,12 +173,20 @@ mod tests {
                 .naive_utc()
                 .checked_add_signed(chrono::Duration::minutes(1))
                 .unwrap(),
-        )?;
+        );
+
+        let records = db.list_email_records_by_criteria(Some(start_end_time), Some(nr.id))?;
         assert!(!records.is_empty());
-        assert_eq!(records[0].recipient_id, nr.id);
-        assert_eq!(records[0].group_id, Some(ng.id));
+        assert_eq!(records[0].id, new_email_record.id);
         assert_eq!(records[0].subject, "Test Subject");
         assert_eq!(records[0].body, "Test Body");
+
+        let records_2 = db.list_email_records_by_criteria(None, Some(nr.id))?;
+        assert_eq!(records, records_2);
+
+        let records_3 = db.list_email_records_by_criteria(Some(start_end_time), None)?;
+        assert_eq!(records, records_3);
+
         Ok(())
     }
 }

@@ -31,18 +31,32 @@ diesel::table! {
 diesel::table! {
     email_history {
         id -> Integer,
-        recipient_id -> Integer,
-        group_id -> Nullable<Integer>,
         subject -> Text,
         body -> Text,
         sent_at -> Timestamp,
     }
 }
 
+diesel::table! {
+    email_history_recipients (email_history_id, recipient_id) {
+        email_history_id -> Integer,
+        recipient_id -> Integer,
+    }
+}
+
 diesel::joinable!(group_recipients -> groups (group_id));
 diesel::joinable!(group_recipients -> recipients (recipient_id));
+diesel::joinable!(email_history_recipients -> recipients (recipient_id));
+diesel::joinable!(email_history_recipients -> email_history (email_history_id));
 
-diesel::allow_tables_to_appear_in_same_query!(recipients, groups, group_recipients, email_history);
+diesel::allow_tables_to_appear_in_same_query!(
+    recipients,
+    groups,
+    group_recipients,
+    email_history,
+    email_history_recipients,
+    templates
+);
 
 pub(crate) fn create_all_tables_sqls() -> Vec<&'static str> {
     vec![
@@ -69,13 +83,16 @@ pub(crate) fn create_all_tables_sqls() -> Vec<&'static str> {
             );",
         "CREATE TABLE IF NOT EXISTS email_history (
                 id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, 
-                recipient_id INTEGER NOT NULL, 
-                group_id INTEGER, 
                 subject TEXT NOT NULL, 
                 body TEXT NOT NULL, 
-                sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (recipient_id) REFERENCES recipients(id), 
-                FOREIGN KEY (group_id) REFERENCES groups(id)
+                sent_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );",
+        "CREATE TABLE IF NOT EXISTS email_history_recipients (
+                email_history_id INTEGER, 
+                recipient_id INTEGER, 
+                PRIMARY KEY (email_history_id, recipient_id), 
+                FOREIGN KEY (email_history_id) REFERENCES email_history(id), 
+                FOREIGN KEY (recipient_id) REFERENCES recipients(id)
             );",
     ]
 }

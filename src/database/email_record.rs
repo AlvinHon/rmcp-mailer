@@ -1,39 +1,57 @@
-use crate::{error::MailerError, model::email_record::EmailRecord};
+use crate::{
+    error::{MailerError, new_rmcp_error},
+    model::email_record::EmailRecord,
+};
 use diesel::prelude::*;
 
 use super::{Database, schema};
 
 impl Database {
-    pub fn list_email_records_by_time(
+    pub fn list_email_records_by_criteria(
         &mut self,
-        start_time: chrono::NaiveDateTime,
-        end_time: chrono::NaiveDateTime,
+        start_end_time: Option<(chrono::NaiveDateTime, chrono::NaiveDateTime)>,
+        by_recipient_id: Option<i32>,
     ) -> Result<Vec<EmailRecord>, MailerError> {
         use schema::email_history::dsl::*;
-        email_history
-            .filter(sent_at.ge(start_time).and(sent_at.le(end_time)))
+        use schema::email_history_recipients::dsl::*;
+
+        if start_end_time.is_none() && by_recipient_id.is_none() {
+            return Err(new_rmcp_error(
+                "At least one filter must be provided for listing email records.",
+            ));
+        }
+
+        let mut query = email_history_recipients
+            .inner_join(schema::email_history::table)
+            .into_boxed();
+
+        if let Some((start, end)) = start_end_time {
+            query = query.filter(sent_at.ge(start).and(sent_at.le(end)));
+        }
+
+        if let Some(by_recipient_id) = by_recipient_id {
+            query = query.filter(recipient_id.eq(by_recipient_id));
+        }
+        query
+            .select(EmailRecord::as_select())
             .load::<EmailRecord>(&mut self.connection)
             .map_err(MailerError::from)
     }
 
     pub fn add_email_record(
         &mut self,
-        new_recipient_id: i32,
-        new_group_id: Option<i32>,
         new_subject: String,
         new_body: String,
-    ) -> Result<(), MailerError> {
+    ) -> Result<EmailRecord, MailerError> {
         use schema::email_history::dsl::*;
         diesel::insert_into(schema::email_history::table)
             .values((
-                recipient_id.eq(new_recipient_id),
-                group_id.eq(new_group_id),
                 subject.eq(new_subject),
                 body.eq(new_body),
                 sent_at.eq(diesel::dsl::now),
             ))
-            .execute(&mut self.connection)
-            .map_err(MailerError::from)?;
-        Ok(())
+            .returning(EmailRecord::as_returning())
+            .get_result(&mut self.connection)
+            .map_err(MailerError::from)
     }
 }
