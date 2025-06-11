@@ -43,7 +43,19 @@ impl MailerService {
         let sent_message = self.mailer.send(&email_request).await?;
 
         // Save the recipient record in the database
-        _ = self.save_recipient_record(&sent_message).await; // Ignore errors
+        let recipient_ids = self
+            .save_recipient_record(&sent_message)
+            .await
+            .expect("Failed to save recipient record");
+
+        // Save email record with recipient IDs
+        self.save_email_record_with_recipient_ids(
+            email_request.subject,
+            email_request.body,
+            recipient_ids,
+        )
+        .await
+        .expect("Failed to save email record");
 
         Ok(CallToolResult::success(vec![Content::text(
             "Email sent successfully!",
@@ -73,7 +85,15 @@ impl MailerService {
         let sent_message = self.mailer.send(&request).await?;
 
         // Save the recipient record in the database
-        _ = self.save_recipient_record(&sent_message).await; // Ignore errors
+        let recipient_ids = self
+            .save_recipient_record(&sent_message)
+            .await
+            .expect("Failed to save recipient record");
+
+        // Save email record with recipient IDs
+        self.save_email_record_with_recipient_ids(request.subject, request.body, recipient_ids)
+            .await
+            .expect("Failed to save email record");
 
         Ok(CallToolResult::success(vec![Content::text(
             "Email sent to group successfully!",
@@ -104,7 +124,15 @@ impl MailerService {
         let sent_message = self.mailer.send(&request).await?;
 
         // Save the recipient record in the database
-        _ = self.save_recipient_record(&sent_message).await; // Ignore errors
+        let recipient_ids = self
+            .save_recipient_record(&sent_message)
+            .await
+            .expect("Failed to save recipient record");
+
+        // Save email record with recipient IDs
+        self.save_email_record_with_recipient_ids(request.subject, request.body, recipient_ids)
+            .await
+            .expect("Failed to save email record");
 
         Ok(CallToolResult::success(vec![Content::text(
             "Email sent with template successfully!",
@@ -317,6 +345,7 @@ impl MailerService {
     }
 
     /// Save recipient records in the database for each email in the sent message.
+    /// Returns a vector of recipient IDs.
     async fn save_recipient_record(&self, sent_message: &Message) -> Result<Vec<i32>, rmcp::Error> {
         let mut recipient_ids = Vec::new();
         let mut db = self.db.lock().await;
@@ -337,6 +366,21 @@ impl MailerService {
         }
 
         Ok(recipient_ids)
+    }
+
+    async fn save_email_record_with_recipient_ids(
+        &self,
+        email_subject: String,
+        email_body: String,
+        recipient_ids: Vec<i32>,
+    ) -> Result<(), rmcp::Error> {
+        let mut db = self.db.lock().await;
+
+        let email_record = db.add_email_record(email_subject, email_body)?;
+        for recipient_id in recipient_ids {
+            db.add_recipient_email_record(email_record.id, recipient_id)?;
+        }
+        Ok(())
     }
 }
 
