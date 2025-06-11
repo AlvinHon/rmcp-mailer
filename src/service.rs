@@ -1,5 +1,6 @@
 use std::{sync::Arc, vec};
 
+use lettre::Message;
 use rmcp::{
     ServerHandler,
     model::{CallToolResult, Content, ServerCapabilities, ServerInfo},
@@ -39,7 +40,10 @@ impl MailerService {
         &self,
         #[tool(aggr)] email_request: SendEmailRequest,
     ) -> Result<CallToolResult, rmcp::Error> {
-        self.mailer.send(&email_request).await?;
+        let sent_message = self.mailer.send(&email_request).await?;
+
+        // Save the recipient record in the database
+        _ = self.save_recipient_record(&sent_message).await; // Ignore errors
 
         Ok(CallToolResult::success(vec![Content::text(
             "Email sent successfully!",
@@ -66,7 +70,10 @@ impl MailerService {
             body: email_request.body,
         };
 
-        self.mailer.send(&request).await?;
+        let sent_message = self.mailer.send(&request).await?;
+
+        // Save the recipient record in the database
+        _ = self.save_recipient_record(&sent_message).await; // Ignore errors
 
         Ok(CallToolResult::success(vec![Content::text(
             "Email sent to group successfully!",
@@ -94,7 +101,10 @@ impl MailerService {
             body,
         };
 
-        self.mailer.send(&request).await?;
+        let sent_message = self.mailer.send(&request).await?;
+
+        // Save the recipient record in the database
+        _ = self.save_recipient_record(&sent_message).await; // Ignore errors
 
         Ok(CallToolResult::success(vec![Content::text(
             "Email sent with template successfully!",
@@ -304,6 +314,29 @@ impl MailerService {
         };
 
         Ok(CallToolResult::success(result_message))
+    }
+
+    /// Save recipient records in the database for each email in the sent message.
+    async fn save_recipient_record(&self, sent_message: &Message) -> Result<Vec<i32>, rmcp::Error> {
+        let mut recipient_ids = Vec::new();
+        let mut db = self.db.lock().await;
+
+        for email in sent_message.envelope().to() {
+            let email_str = email.to_string();
+            let new_recipient_id = match db.find_recipient_by_email(email_str.clone()) {
+                Ok(recipient) => recipient.id, // If recipient exists, use their ID
+                Err(_) => {
+                    // If recipient does not exist, create a new one
+                    let recipient = db
+                        .new_recipient(email.user().to_string(), email_str)
+                        .map_err(|e| new_rmcp_error(&format!("Failed to save recipient: {}", e)))?;
+                    recipient.id
+                }
+            };
+            recipient_ids.push(new_recipient_id);
+        }
+
+        Ok(recipient_ids)
     }
 }
 

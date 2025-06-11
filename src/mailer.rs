@@ -18,16 +18,18 @@ impl Mailer {
         Self { config }
     }
 
-    pub async fn send(&self, email_request: &SendEmailRequest) -> Result<(), MailerError> {
+    pub async fn send(&self, email_request: &SendEmailRequest) -> Result<Message, MailerError> {
         let email = self.build_email(email_request)?;
         let mailer = self.build_transport()?;
 
         // Send the email
         mailer
-            .send(email)
+            .send(email.clone())
             .await
             .map(|_| ())
-            .map_err(MailerError::from)
+            .map_err(MailerError::from)?;
+
+        Ok(email)
     }
 
     fn build_email(&self, email_request: &SendEmailRequest) -> Result<Message, MailerError> {
