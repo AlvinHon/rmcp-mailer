@@ -104,3 +104,99 @@ pub struct UpdateTemplateRequest {
 pub struct RemoveTemplateRequest {
     pub name: String,
 }
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct GetEmailHistoryRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub to: Option<String>,
+    /// The start date for filtering email history.
+    /// ISO 8601 format (e.g., "2023-10-01T00:00:00")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_date: Option<String>,
+    /// The end date for filtering email history.
+    /// ISO 8601 format (e.g., "2023-10-31T23:59:59")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_date: Option<String>,
+}
+
+impl GetEmailHistoryRequest {
+    pub fn is_valid(&self) -> bool {
+        // If all fields are None, the request is considered invalid
+        if self.to.is_none() && self.start_date.is_none() && self.end_date.is_none() {
+            return false;
+        }
+
+        // Validate the 'to' field if it is provided
+        if let Some(to) = &self.to {
+            if to.parse::<lettre::Address>().is_err() {
+                return false;
+            }
+        }
+
+        let parsed_start = &self
+            .start_date
+            .as_ref()
+            .and_then(|start| chrono::DateTime::parse_from_rfc3339(start).ok());
+        // If start_date is provided but cannot be parsed, return invalid
+        if self.start_date.is_some() && parsed_start.is_none() {
+            return false;
+        }
+
+        let parsed_end = &self
+            .end_date
+            .as_ref()
+            .and_then(|end| chrono::DateTime::parse_from_rfc3339(end).ok());
+
+        // If end_date is provided but cannot be parsed, return invalid
+        if self.end_date.is_some() && parsed_end.is_none() {
+            return false;
+        }
+
+        // If both start_date and end_date are provided, check if start_date is before end_date
+        if let (Some(parsed_start_datetime), Some(parsed_end_datetime)) =
+            (&parsed_start, &parsed_end)
+        {
+            if parsed_start_datetime > parsed_end_datetime {
+                return false;
+            }
+        }
+        // If only start date is provided, it must not be future-dated
+        if let Some(parsed_start_datetime) = parsed_start {
+            if parsed_start_datetime > &chrono::Utc::now() {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    /// Converts the request's start and end dates to a tuple of NaiveDateTime.
+    /// If only one date is provided, the current time or UNIX epoch is used for the other.
+    pub fn to_start_end_time(&self) -> Option<(chrono::NaiveDateTime, chrono::NaiveDateTime)> {
+        match (&self.start_date, &self.end_date) {
+            (Some(start), Some(end)) => {
+                let start_time = chrono::DateTime::parse_from_rfc3339(start)
+                    .unwrap()
+                    .naive_utc();
+                let end_time = chrono::DateTime::parse_from_rfc3339(end)
+                    .unwrap()
+                    .naive_utc();
+                Some((start_time, end_time))
+            }
+            (Some(start), None) => {
+                let start_time = chrono::DateTime::parse_from_rfc3339(start)
+                    .unwrap()
+                    .naive_utc();
+                Some((start_time, chrono::Utc::now().naive_utc()))
+            }
+            (None, Some(end)) => {
+                let end_time = chrono::DateTime::parse_from_rfc3339(end)
+                    .unwrap()
+                    .naive_utc();
+                Some((chrono::DateTime::UNIX_EPOCH.naive_local(), end_time))
+            }
+
+            _ => None,
+        }
+    }
+}

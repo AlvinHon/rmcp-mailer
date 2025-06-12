@@ -15,8 +15,9 @@ use crate::{
     mailer::Mailer,
     model::{recipient::Recipient, template::Template},
     request::{
-        ManageGroupsRequest, ManageRecipientsRequest, ManageTemplatesRequest, SendEmailRequest,
-        SendEmailWithTemplateRequest, SendGroupEmailRequest,
+        GetEmailHistoryRequest, ManageGroupsRequest, ManageRecipientsRequest,
+        ManageTemplatesRequest, SendEmailRequest, SendEmailWithTemplateRequest,
+        SendGroupEmailRequest,
     },
 };
 
@@ -342,6 +343,37 @@ impl MailerService {
         };
 
         Ok(CallToolResult::success(result_message))
+    }
+
+    #[tool(description = "Get email records filter by recipients or group by time range")]
+    async fn get_email_records(
+        &self,
+        #[tool(aggr)] get_email_history_request: GetEmailHistoryRequest,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        if !get_email_history_request.is_valid() {
+            return Err(rmcp::Error::from(new_rmcp_error(
+                "Invalid request: At least one filter must be provided (to, start_date, end_date)",
+            )));
+        }
+
+        let mut db = self.db.lock().await;
+
+        let start_end_time = get_email_history_request.to_start_end_time();
+
+        let recipient_id = get_email_history_request.to.and_then(|recipient_email| {
+            db.find_recipient_by_email(recipient_email)
+                .ok()
+                .map(|recipient| recipient.id)
+        });
+
+        let result = db
+            .list_email_records_by_criteria(start_end_time, recipient_id)
+            .map_err(|e| new_rmcp_error(&format!("Failed to list email records: {}", e)))?
+            .into_iter()
+            .map(|r| Content::text(format!("Email Record: {r:?}")))
+            .collect::<Vec<_>>();
+
+        Ok(CallToolResult::success(result))
     }
 
     /// Save recipient records in the database for each email in the sent message.
