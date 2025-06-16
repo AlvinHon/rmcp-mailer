@@ -1,5 +1,5 @@
 use crate::{
-    config::MailerConfig,
+    config::{MailSender, MailerConfig},
     error::{MailerError, new_rmcp_error},
     request::SendEmailRequest,
 };
@@ -19,11 +19,17 @@ impl Mailer {
     }
 
     pub async fn send(&self, email_request: &SendEmailRequest) -> Result<Message, MailerError> {
-        let email = self.build_email(email_request)?;
-        let mailer = self.build_transport()?;
+        // TODO use the defualt sender if no sender is specified in the request
+        let sender = self
+            .config
+            .default_sender()
+            .ok_or_else(|| new_rmcp_error("No default sender configured"))?;
+
+        let email = self.build_email(email_request, sender)?;
+        let transport = self.build_transport(sender)?;
 
         // Send the email
-        mailer
+        transport
             .send(email.clone())
             .await
             .map(|_| ())
@@ -32,14 +38,18 @@ impl Mailer {
         Ok(email)
     }
 
-    fn build_email(&self, email_request: &SendEmailRequest) -> Result<Message, MailerError> {
+    fn build_email(
+        &self,
+        email_request: &SendEmailRequest,
+        from: &MailSender,
+    ) -> Result<Message, MailerError> {
+        let from = from
+            .email
+            .parse::<lettre::message::Mailbox>()
+            .map_err(|_| new_rmcp_error("Invalid sender email"))?;
+
         let mut msg_builder = Message::builder()
-            .from(
-                self.config
-                    .mailer_email
-                    .parse()
-                    .map_err(|_| new_rmcp_error("Invalid sender email"))?,
-            )
+            .from(from)
             .subject(&email_request.subject)
             .header(ContentType::TEXT_PLAIN);
 
@@ -58,17 +68,20 @@ impl Mailer {
             .map_err(MailerError::from)
     }
 
-    fn build_transport(&self) -> Result<AsyncSmtpTransport<Tokio1Executor>, MailerError> {
-        if self.config.is_authenication() {
-            let creds = Credentials::new(
-                self.config.smtp_username.clone().unwrap().to_owned(),
-                self.config.smtp_password.clone().unwrap().to_owned(),
-            );
+    fn build_transport(
+        &self,
+        sender: &MailSender,
+    ) -> Result<AsyncSmtpTransport<Tokio1Executor>, MailerError> {
+        let credentials = sender
+            .credentials
+            .as_ref()
+            .map(|creds| Credentials::new(creds.username.clone(), creds.password.clone()));
 
+        if let Some(credentials) = credentials {
             let mailer = AsyncSmtpTransport::<Tokio1Executor>::relay(&self.config.smtp_host)
                 .unwrap()
                 .port(self.config.smtp_port)
-                .credentials(creds)
+                .credentials(credentials)
                 .build();
 
             return Ok(mailer);
