@@ -77,6 +77,7 @@ impl MailerService {
         let to = recipients.into_iter().map(|r| r.email).collect::<Vec<_>>();
 
         let request = SendEmailRequest {
+            from: email_request.from,
             to,
             reply_to: email_request.reply_to,
             subject: email_request.subject,
@@ -116,6 +117,7 @@ impl MailerService {
             .map_err(|e| new_rmcp_error(&e))?;
 
         let request = SendEmailRequest {
+            from: email_request.from,
             to: email_request.to,
             reply_to: email_request.reply_to,
             subject: email_request.subject,

@@ -11,11 +11,42 @@ pub struct Config {
 
 impl Config {
     pub fn read_from_file() -> Self {
-        match read("config.toml") {
+        let config = match read("config.toml") {
             Ok(bytes) => toml::from_str(&String::from_utf8_lossy(&bytes))
                 .expect("config.toml must have valid toml format."),
             Err(_) => Config::default(),
+        };
+
+        // Validate the config
+        if config.sse_server_host.is_empty() {
+            panic!("sse_server_host must be set in the config.toml");
         }
+
+        if config.db_config.db_path.is_empty() {
+            panic!("db_config.db_path must be set in the config.toml");
+        }
+
+        if config.mailer_config.smtp_host.is_empty() {
+            panic!("mailer_config.smtp_host must be set in the config.toml");
+        }
+
+        if config.mailer_config.senders.is_empty() {
+            panic!(
+                "mailer_config.senders must have at least one sender configured in the config.toml"
+            );
+        }
+
+        if config.mailer_config.senders[0]
+            .email
+            .parse::<lettre::Address>()
+            .is_err()
+        {
+            panic!(
+                "mailer_config.senders[0].email (default email) must be a valid email address in the config.toml"
+            );
+        }
+
+        config
     }
 }
 
@@ -37,15 +68,29 @@ pub struct MailerConfig {
 }
 
 impl MailerConfig {
-    pub fn default_sender(&self) -> Option<&MailSender> {
-        self.senders.first()
+    pub fn default_sender(&self) -> &MailSender {
+        self.senders
+            .first()
+            .expect("At least one sender must be configured")
     }
 
-    pub fn find_sender(&self, username: &str) -> Option<&SMTPCredentials> {
-        self.senders
-            .iter()
-            .filter_map(|sender| sender.credentials.as_ref())
-            .find(|user| user.username == username)
+    /// Finds the sender by email address and returns its credentials if available.
+    ///
+    /// Conditions to find a sender:
+    ///
+    /// 1. The sender's email must match the provided email address.
+    /// 2. If the email address is not valid, it checks if the user part of the email matches.
+    ///
+    /// Returns `None` if no matching sender is found.
+    pub fn find_sender(&self, sender: &str) -> Option<&MailSender> {
+        self.senders.iter().find(|s| {
+            if let Ok(sender_email) = s.email.parse::<lettre::Address>() {
+                sender_email.to_string().as_str() == sender
+            } else {
+                let s_email_user = s.email.parse::<lettre::Address>().unwrap();
+                s_email_user.user() == sender
+            }
+        })
     }
 }
 
@@ -116,8 +161,7 @@ fn test_toml_config() {
     assert_eq!(config.mailer_config.smtp_host, "localhost");
     assert_eq!(config.mailer_config.senders.len(), 2);
 
-    assert!(config.mailer_config.default_sender().is_some());
-    let first_sender = config.mailer_config.default_sender().unwrap();
+    let first_sender = config.mailer_config.default_sender();
     assert_eq!(first_sender.email, "test@test.com");
     assert_eq!(
         first_sender.credentials.as_ref().unwrap().username,

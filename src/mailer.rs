@@ -19,11 +19,11 @@ impl Mailer {
     }
 
     pub async fn send(&self, email_request: &SendEmailRequest) -> Result<Message, MailerError> {
-        // TODO use the defualt sender if no sender is specified in the request
-        let sender = self
-            .config
-            .default_sender()
-            .ok_or_else(|| new_rmcp_error("No default sender configured"))?;
+        let sender = email_request
+            .from
+            .as_ref()
+            .and_then(|from| self.config.find_sender(from))
+            .unwrap_or(self.config.default_sender());
 
         let email = self.build_email(email_request, sender)?;
         let transport = self.build_transport(sender)?;

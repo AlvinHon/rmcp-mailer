@@ -4,6 +4,8 @@ use rmcp::schemars;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct SendEmailRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub from: Option<String>, // Optional sender email address. If not provided, the default sender will be used.
     pub to: Vec<String>,
     pub reply_to: Option<String>,
     pub subject: String,
@@ -12,6 +14,8 @@ pub struct SendEmailRequest {
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct SendGroupEmailRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub from: Option<String>, // Optional sender email address. If not provided, the default sender will be used.
     pub group_name: String,
     pub reply_to: Option<String>,
     pub subject: String,
@@ -20,6 +24,8 @@ pub struct SendGroupEmailRequest {
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct SendEmailWithTemplateRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub from: Option<String>, // Optional sender email address. If not provided, the default sender will be used.
     pub to: Vec<String>,
     pub reply_to: Option<String>,
     pub subject: String,
