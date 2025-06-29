@@ -1,4 +1,5 @@
 pub(crate) mod email_record;
+pub(crate) mod event;
 pub(crate) mod group;
 pub(crate) mod recipient;
 pub(crate) mod recipient_email_record;
@@ -65,6 +66,7 @@ mod tests {
             .expect("Failed to run test_script_for_recipient_group");
         test_script_for_template(&mut db).expect("Failed to run test_script_for_template");
         test_script_for_email_record(&mut db).expect("Failed to run test_script_for_email_record");
+        test_script_for_event(&mut db).expect("Failed to run test_script_for_event");
 
         drop(db);
         std::fs::remove_file(DB_PATH).expect("Failed to remove test.db");
@@ -186,6 +188,38 @@ mod tests {
 
         let records_3 = db.list_email_records_by_criteria(Some(start_end_time), None)?;
         assert_eq!(records, records_3);
+
+        Ok(())
+    }
+
+    fn test_script_for_event(db: &mut Database) -> Result<(), MailerError> {
+        let new_event = db.add_event(
+            "Test Event".to_string(),
+            Some("This is a test event".to_string()),
+            chrono::Utc::now().naive_utc(),
+            None,
+            false,
+        )?;
+        assert_eq!(new_event.title, "Test Event");
+        assert_eq!(
+            new_event.description,
+            Some("This is a test event".to_string())
+        );
+
+        let events = db.list_events(
+            chrono::Utc::now()
+                .naive_utc()
+                .checked_sub_signed(chrono::Duration::days(1))
+                .unwrap(),
+            Some(
+                chrono::Utc::now()
+                    .naive_utc()
+                    .checked_add_signed(chrono::Duration::days(1))
+                    .unwrap(),
+            ),
+        )?;
+
+        assert!(!events.is_empty());
 
         Ok(())
     }

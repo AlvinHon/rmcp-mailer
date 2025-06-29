@@ -44,6 +44,17 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    events {
+        id -> Integer,
+        title -> Text,
+        description -> Nullable<Text>,
+        start_time -> Timestamp,
+        end_time -> Nullable<Timestamp>,
+        is_all_day -> Bool,
+    }
+}
+
 diesel::joinable!(group_recipients -> groups (group_id));
 diesel::joinable!(group_recipients -> recipients (recipient_id));
 diesel::joinable!(email_history_recipients -> recipients (recipient_id));
@@ -93,6 +104,14 @@ pub(crate) fn create_all_tables_sqls() -> Vec<&'static str> {
                 PRIMARY KEY (email_history_id, recipient_id), 
                 FOREIGN KEY (email_history_id) REFERENCES email_history(id), 
                 FOREIGN KEY (recipient_id) REFERENCES recipients(id)
+            );",
+        "CREATE TABLE IF NOT EXISTS events (
+                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, 
+                title TEXT NOT NULL, 
+                description TEXT, 
+                start_time DATETIME NOT NULL, 
+                end_time DATETIME, 
+                is_all_day BOOLEAN NOT NULL DEFAULT 0
             );",
     ]
 }
