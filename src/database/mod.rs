@@ -1,5 +1,6 @@
 pub(crate) mod email_record;
 pub(crate) mod event;
+pub(crate) mod event_attendee;
 pub(crate) mod group;
 pub(crate) mod recipient;
 pub(crate) mod recipient_email_record;
@@ -45,7 +46,10 @@ unsafe impl Sync for Database {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{error::MailerError, model::recipient::Recipient};
+    use crate::{
+        error::MailerError,
+        model::{event_attendee::AcceptanceStatus, recipient::Recipient},
+    };
 
     #[test]
     fn test_database() {
@@ -220,6 +224,23 @@ mod tests {
         )?;
 
         assert!(!events.is_empty());
+
+        let recipient =
+            db.new_recipient("Attendee".to_string(), "attendee@domain.com".to_string())?;
+
+        let attendee =
+            db.add_event_attendee(new_event.id, recipient.id, AcceptanceStatus::Accepted)?;
+        assert_eq!(attendee.event_id, new_event.id);
+        assert_eq!(attendee.recipient_id, recipient.id);
+        assert_eq!(attendee.acceptance_status, AcceptanceStatus::Accepted);
+
+        let attendees = db.list_event_attendees(new_event.id)?;
+        assert!(!attendees.is_empty());
+
+        let attendee = &attendees[0];
+        assert_eq!(attendee.event_id, new_event.id);
+        assert_eq!(attendee.recipient_id, recipient.id);
+        assert_eq!(attendee.acceptance_status, AcceptanceStatus::Accepted);
 
         Ok(())
     }

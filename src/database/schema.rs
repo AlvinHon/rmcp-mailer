@@ -55,10 +55,21 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    event_attendees {
+        id -> Integer,
+        event_id -> Integer,
+        recipient_id -> Integer,
+        acceptance_status -> Text,
+    }
+}
+
 diesel::joinable!(group_recipients -> groups (group_id));
 diesel::joinable!(group_recipients -> recipients (recipient_id));
 diesel::joinable!(email_history_recipients -> recipients (recipient_id));
 diesel::joinable!(email_history_recipients -> email_history (email_history_id));
+diesel::joinable!(event_attendees -> events (event_id));
+diesel::joinable!(event_attendees -> recipients (recipient_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     recipients,
@@ -66,7 +77,9 @@ diesel::allow_tables_to_appear_in_same_query!(
     group_recipients,
     email_history,
     email_history_recipients,
-    templates
+    templates,
+    events,
+    event_attendees,
 );
 
 pub(crate) fn create_all_tables_sqls() -> Vec<&'static str> {
@@ -112,6 +125,14 @@ pub(crate) fn create_all_tables_sqls() -> Vec<&'static str> {
                 start_time DATETIME NOT NULL, 
                 end_time DATETIME, 
                 is_all_day BOOLEAN NOT NULL DEFAULT 0
+            );",
+        "CREATE TABLE IF NOT EXISTS event_attendees (
+                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, 
+                event_id INTEGER NOT NULL, 
+                recipient_id INTEGER NOT NULL, 
+                acceptance_status TEXT NOT NULL CHECK (acceptance_status IN ('Accepted', 'Declined', 'Tentative')),
+                FOREIGN KEY (event_id) REFERENCES events(id), 
+                FOREIGN KEY (recipient_id) REFERENCES recipients(id)
             );",
     ]
 }
