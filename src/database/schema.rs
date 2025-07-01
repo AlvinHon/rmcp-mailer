@@ -84,6 +84,7 @@ diesel::allow_tables_to_appear_in_same_query!(
 
 pub(crate) fn create_all_tables_sqls() -> Vec<&'static str> {
     vec![
+        "PRAGMA foreign_keys = ON;",
         "CREATE TABLE IF NOT EXISTS recipients (
                 id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, 
                 name TEXT NOT NULL,
@@ -97,8 +98,8 @@ pub(crate) fn create_all_tables_sqls() -> Vec<&'static str> {
                 group_id INTEGER, 
                 recipient_id INTEGER, 
                 PRIMARY KEY (group_id, recipient_id), 
-                FOREIGN KEY (group_id) REFERENCES groups(id), 
-                FOREIGN KEY (recipient_id) REFERENCES recipients(id)
+                FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
+                FOREIGN KEY (recipient_id) REFERENCES recipients(id) ON DELETE CASCADE
             );",
         "CREATE TABLE IF NOT EXISTS templates (
                 id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, 
@@ -115,7 +116,7 @@ pub(crate) fn create_all_tables_sqls() -> Vec<&'static str> {
                 email_history_id INTEGER, 
                 recipient_id INTEGER, 
                 PRIMARY KEY (email_history_id, recipient_id), 
-                FOREIGN KEY (email_history_id) REFERENCES email_history(id), 
+                FOREIGN KEY (email_history_id) REFERENCES email_history(id),
                 FOREIGN KEY (recipient_id) REFERENCES recipients(id)
             );",
         "CREATE TABLE IF NOT EXISTS events (
@@ -131,8 +132,8 @@ pub(crate) fn create_all_tables_sqls() -> Vec<&'static str> {
                 event_id INTEGER NOT NULL, 
                 recipient_id INTEGER NOT NULL, 
                 acceptance_status TEXT NOT NULL CHECK (acceptance_status IN ('Accepted', 'Declined', 'Tentative')),
-                FOREIGN KEY (event_id) REFERENCES events(id), 
-                FOREIGN KEY (recipient_id) REFERENCES recipients(id)
+                FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+                FOREIGN KEY (recipient_id) REFERENCES recipients(id) ON DELETE CASCADE
             );",
     ]
 }

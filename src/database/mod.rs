@@ -242,6 +242,10 @@ mod tests {
         assert_eq!(attendee.recipient_id, recipient.id);
         assert_eq!(attendee.acceptance_status, AcceptanceStatus::Accepted);
 
+        db.remove_event(new_event.id)?;
+        let attendees_after_removal = db.list_event_attendees(new_event.id)?;
+        assert!(attendees_after_removal.is_empty());
+
         Ok(())
     }
 }

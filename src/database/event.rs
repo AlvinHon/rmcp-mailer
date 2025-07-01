@@ -45,4 +45,12 @@ impl Database {
             .get_result(&mut self.connection)
             .map_err(MailerError::from)
     }
+
+    pub fn remove_event(&mut self, event_id: i32) -> Result<usize, MailerError> {
+        use schema::events::dsl::*;
+
+        diesel::delete(events.filter(id.eq(event_id)))
+            .execute(&mut self.connection)
+            .map_err(MailerError::from)
+    }
 }
