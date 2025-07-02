@@ -131,6 +131,7 @@ mod tests {
                 id: nr2.id,
                 name: nr2.name.clone(),
                 email: nr2.email.clone(),
+                status: nr2.status.clone(),
             }
         );
         db.remove_recipient_from_group(ng2.id, nr2.id)?;

@@ -234,6 +234,7 @@ impl MailerService {
                         id: r.id,
                         name: update_request.new_name.unwrap_or(r.name),
                         email: update_request.new_email.unwrap_or(r.email),
+                        status: r.status,
                     })
                     .map_err(|_| new_rmcp_error("Recipient not found"))?;
                 db.update_recipient(recipient.id, recipient.name, recipient.email)?;

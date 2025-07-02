@@ -1,4 +1,7 @@
-use crate::{error::MailerError, model::recipient::Recipient};
+use crate::{
+    error::MailerError,
+    model::recipient::{Recipient, RecipientStatus},
+};
 use diesel::prelude::*;
 
 use super::{Database, schema};
@@ -8,6 +11,7 @@ impl Database {
         use schema::recipients::dsl::*;
 
         recipients
+            .filter(status.eq(RecipientStatus::Active))
             .load::<Recipient>(&mut self.connection)
             .map_err(MailerError::from)
     }
@@ -16,7 +20,7 @@ impl Database {
         use schema::recipients::dsl::*;
 
         recipients
-            .filter(email.eq(email_str))
+            .filter(email.eq(email_str).and(status.eq(RecipientStatus::Active)))
             .first::<Recipient>(&mut self.connection)
             .map_err(MailerError::from)
     }
@@ -29,7 +33,11 @@ impl Database {
         use schema::recipients::dsl::*;
 
         diesel::insert_into(recipients)
-            .values((name.eq(name_str), email.eq(email_str)))
+            .values((
+                name.eq(name_str),
+                email.eq(email_str),
+                status.eq(RecipientStatus::Active),
+            ))
             .returning(Recipient::as_returning())
             .get_result(&mut self.connection)
             .map_err(MailerError::from)
@@ -53,7 +61,9 @@ impl Database {
     pub fn remove_recipient(&mut self, recipient_id: i32) -> Result<Recipient, MailerError> {
         use schema::recipients::dsl::*;
 
-        diesel::delete(recipients.filter(id.eq(recipient_id)))
+        // inactive the recipient instead of deleting
+        diesel::update(recipients.filter(id.eq(recipient_id)))
+            .set(status.eq(RecipientStatus::Inactive))
             .returning(Recipient::as_returning())
             .get_result(&mut self.connection)
             .map_err(MailerError::from)
