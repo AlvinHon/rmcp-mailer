@@ -17,45 +17,42 @@ pub struct EventAttendee {
     pub id: i32,
     pub event_id: i32,
     pub recipient_id: i32,
-    pub acceptance_status: AcceptanceStatus,
+    pub invitation_type: InvitationType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Text)]
-pub enum AcceptanceStatus {
-    Accepted,
-    Declined,
-    Tentative,
+pub enum InvitationType {
+    Required,
+    Optional,
 }
 
-impl ToSql<Text, Sqlite> for AcceptanceStatus {
+impl ToSql<Text, Sqlite> for InvitationType {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Sqlite>) -> diesel::serialize::Result {
         let status_str = match self {
-            AcceptanceStatus::Accepted => "Accepted",
-            AcceptanceStatus::Declined => "Declined",
-            AcceptanceStatus::Tentative => "Tentative",
+            InvitationType::Required => "Required",
+            InvitationType::Optional => "Optional",
         };
         out.set_value(status_str);
         Ok(diesel::serialize::IsNull::No)
     }
 }
 
-impl FromSql<Text, Sqlite> for AcceptanceStatus {
+impl FromSql<Text, Sqlite> for InvitationType {
     fn from_sql(bytes: SqliteValue) -> diesel::deserialize::Result<Self> {
         let t = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
         Ok(t.as_str().try_into()?)
     }
 }
 
-impl TryFrom<&str> for AcceptanceStatus {
+impl TryFrom<&str> for InvitationType {
     type Error = String;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "Accepted" => Ok(AcceptanceStatus::Accepted),
-            "Declined" => Ok(AcceptanceStatus::Declined),
-            "Tentative" => Ok(AcceptanceStatus::Tentative),
-            _ => Err(format!("Invalid acceptance status: {}", value)),
+            "Required" => Ok(InvitationType::Required),
+            "Optional" => Ok(InvitationType::Optional),
+            _ => Err(format!("Invalid InvitationType: {}", value)),
         }
     }
 }

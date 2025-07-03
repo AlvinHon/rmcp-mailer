@@ -48,7 +48,7 @@ mod tests {
     use super::*;
     use crate::{
         error::MailerError,
-        model::{event_attendee::AcceptanceStatus, recipient::Recipient},
+        model::{event_attendee::InvitationType, recipient::Recipient},
     };
 
     #[test]
@@ -230,10 +230,10 @@ mod tests {
             db.new_recipient("Attendee".to_string(), "attendee@domain.com".to_string())?;
 
         let attendee =
-            db.add_event_attendee(new_event.id, recipient.id, AcceptanceStatus::Accepted)?;
+            db.add_event_attendee(new_event.id, recipient.id, InvitationType::Required)?;
         assert_eq!(attendee.event_id, new_event.id);
         assert_eq!(attendee.recipient_id, recipient.id);
-        assert_eq!(attendee.acceptance_status, AcceptanceStatus::Accepted);
+        assert_eq!(attendee.invitation_type, InvitationType::Required);
 
         let attendees = db.list_event_attendees(new_event.id)?;
         assert!(!attendees.is_empty());
@@ -241,7 +241,7 @@ mod tests {
         let attendee = &attendees[0];
         assert_eq!(attendee.event_id, new_event.id);
         assert_eq!(attendee.recipient_id, recipient.id);
-        assert_eq!(attendee.acceptance_status, AcceptanceStatus::Accepted);
+        assert_eq!(attendee.invitation_type, InvitationType::Required);
 
         db.remove_event(new_event.id)?;
         let attendees_after_removal = db.list_event_attendees(new_event.id)?;
