@@ -15,7 +15,7 @@ use crate::{
     mailer::Mailer,
     model::{recipient::Recipient, template::Template},
     request::{
-        GetEmailHistoryRequest, ManageGroupsRequest, ManageRecipientsRequest,
+        CreateEventRequest, GetEmailHistoryRequest, ManageGroupsRequest, ManageRecipientsRequest,
         ManageTemplatesRequest, SendEmailRequest, SendEmailWithTemplateRequest,
         SendGroupEmailRequest,
     },
@@ -377,6 +377,39 @@ impl MailerService {
             .collect::<Vec<_>>();
 
         Ok(CallToolResult::success(result))
+    }
+
+    #[tool(description = "Create an event in the calendar")]
+    async fn create_event(
+        &self,
+        #[tool(aggr)] event_request: CreateEventRequest,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        let mut db = self.db.lock().await;
+
+        let new_event = db.add_event(
+            event_request.title,
+            event_request.description,
+            event_request.start_time,
+            event_request.end_time,
+            event_request.is_all_day,
+        )?;
+
+        if let Ok(overlapping_events) =
+            db.list_events(event_request.start_time, event_request.end_time)
+        {
+            let overlapping_events = overlapping_events
+                .iter()
+                .filter(|e| e.id != new_event.id)
+                .collect::<Vec<_>>();
+
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "Event created successfully: {new_event:?}. Overlapping events: {overlapping_events:?}"
+            ))]));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "Event created successfully: {new_event:?}"
+        ))]))
     }
 
     /// Save recipient records in the database for each email in the sent message.

@@ -45,6 +45,8 @@ unsafe impl Sync for Database {}
 
 #[cfg(test)]
 mod tests {
+    use chrono::Days;
+
     use super::*;
     use crate::{
         error::MailerError,
@@ -201,7 +203,10 @@ mod tests {
         let new_event = db.add_event(
             "Test Event".to_string(),
             Some("This is a test event".to_string()),
-            chrono::Utc::now().naive_utc(),
+            chrono::Utc::now()
+                .naive_utc()
+                .checked_add_days(Days::new(1))
+                .unwrap(),
             None,
             false,
         )?;
@@ -211,20 +216,40 @@ mod tests {
             Some("This is a test event".to_string())
         );
 
+        db.add_event(
+            "Test Event 2".to_string(),
+            None,
+            chrono::Utc::now()
+                .naive_utc()
+                .checked_add_days(Days::new(2))
+                .unwrap(),
+            chrono::Utc::now()
+                .naive_utc()
+                .checked_add_days(Days::new(3)),
+            true,
+        )?;
+
         let events = db.list_events(
             chrono::Utc::now()
                 .naive_utc()
-                .checked_sub_signed(chrono::Duration::days(1))
+                .checked_sub_days(Days::new(3))
                 .unwrap(),
-            Some(
-                chrono::Utc::now()
-                    .naive_utc()
-                    .checked_add_signed(chrono::Duration::days(1))
-                    .unwrap(),
-            ),
+            chrono::Utc::now()
+                .naive_utc()
+                .checked_add_days(Days::new(3)),
         )?;
+        assert_eq!(events.len(), 2);
 
-        assert!(!events.is_empty());
+        let events = db.list_events(
+            chrono::Utc::now()
+                .naive_utc()
+                .checked_sub_days(Days::new(1))
+                .unwrap(),
+            chrono::Utc::now()
+                .naive_utc()
+                .checked_add_days(Days::new(1)),
+        )?;
+        assert_eq!(events.len(), 1);
 
         let recipient =
             db.new_recipient("Attendee".to_string(), "attendee@domain.com".to_string())?;

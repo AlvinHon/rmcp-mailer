@@ -206,3 +206,13 @@ impl GetEmailHistoryRequest {
         }
     }
 }
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct CreateEventRequest {
+    pub title: String,
+    pub description: Option<String>,
+    pub start_time: chrono::NaiveDateTime,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_time: Option<chrono::NaiveDateTime>,
+    pub is_all_day: bool,
+}
