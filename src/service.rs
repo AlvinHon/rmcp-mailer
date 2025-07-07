@@ -17,7 +17,7 @@ use crate::{
     request::{
         CreateEventRequest, GetEmailHistoryRequest, ManageGroupsRequest, ManageRecipientsRequest,
         ManageTemplatesRequest, SendEmailRequest, SendEmailWithTemplateRequest,
-        SendGroupEmailRequest,
+        SendGroupEmailRequest, is_valid_start_end_time, parse_start_end_time,
     },
 };
 
@@ -361,7 +361,10 @@ impl MailerService {
 
         let mut db = self.db.lock().await;
 
-        let start_end_time = get_email_history_request.to_start_end_time();
+        let start_end_time = parse_start_end_time(
+            get_email_history_request.start_date.as_ref(),
+            get_email_history_request.end_date.as_ref(),
+        );
 
         let recipient_id = get_email_history_request.to.and_then(|recipient_email| {
             db.find_recipient_by_email(recipient_email)
@@ -410,6 +413,39 @@ impl MailerService {
         Ok(CallToolResult::success(vec![Content::text(format!(
             "Event created successfully: {new_event:?}"
         ))]))
+    }
+
+    #[tool(description = "List events in the calendar")]
+    async fn list_events(
+        &self,
+        #[tool(param)]
+        #[schemars(description = "Start date in RFC3339 format")]
+        start_date: Option<String>,
+        #[tool(param)]
+        #[schemars(description = "End date in RFC3339 format")]
+        end_date: Option<String>,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        let mut db = self.db.lock().await;
+
+        if !is_valid_start_end_time(start_date.as_ref(), end_date.as_ref()) {
+            return Err(rmcp::Error::from(new_rmcp_error(
+                "Invalid request: start_date and end_date must be valid RFC3339 dates with reasonable range",
+            )));
+        }
+
+        let start_end_time = parse_start_end_time(start_date.as_ref(), end_date.as_ref());
+
+        let events = match start_end_time {
+            Some((start, end)) => db.list_events(start, Some(end))?,
+            None => db.list_events(chrono::NaiveDateTime::MIN, None)?,
+        };
+
+        let result = events
+            .into_iter()
+            .map(|e| Content::text(format!("Event: {e:?}")))
+            .collect::<Vec<_>>();
+
+        Ok(CallToolResult::success(result))
     }
 
     /// Save recipient records in the database for each email in the sent message.
