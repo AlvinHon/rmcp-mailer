@@ -216,3 +216,31 @@ pub struct CreateEventRequest {
     pub end_time: Option<chrono::NaiveDateTime>,
     pub is_all_day: bool,
 }
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct SendEventInvitationRequest {
+    pub event_id: i32,
+    pub to: SendEventInvitationTo,
+    pub subject: String,
+    pub template: InvitationTemplate,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct SendEventInvitationTo {
+    /// list of groups to send invitations to, where the party is the group name
+    pub groups: Vec<InvitationTarget>,
+    /// list of individuals to send invitations to, where the party is the email address
+    pub individuals: Vec<InvitationTarget>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct InvitationTarget {
+    pub party: String,
+    pub is_required: bool,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub enum InvitationTemplate {
+    CustomText(String),     // Custom text for the invitation
+    StoredTemplate(String), // Name of the stored template
+}
