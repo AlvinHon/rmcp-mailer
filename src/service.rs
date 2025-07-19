@@ -6,7 +6,7 @@ use rmcp::{
     model::{CallToolResult, Content, ServerCapabilities, ServerInfo},
     schemars, tool,
 };
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, MutexGuard};
 
 use crate::{
     config::Config,
@@ -44,19 +44,18 @@ impl MailerService {
     ) -> Result<CallToolResult, rmcp::Error> {
         let sent_message = self.mailer.send(&email_request).await?;
 
+        let mut db = self.db.lock().await;
         // Save the recipient record in the database
-        let recipient_ids = self
-            .save_recipient_record(&sent_message)
-            .await
+        let recipient_ids = Self::save_recipient_record(&mut db, &sent_message)
             .expect("Failed to save recipient record");
 
         // Save email record with recipient IDs
-        self.save_email_record_with_recipient_ids(
+        Self::save_email_record_with_recipient_ids(
+            &mut db,
             email_request.subject,
             email_request.body,
             recipient_ids,
         )
-        .await
         .expect("Failed to save email record");
 
         Ok(CallToolResult::success(vec![Content::text(
@@ -88,15 +87,17 @@ impl MailerService {
         let sent_message = self.mailer.send(&request).await?;
 
         // Save the recipient record in the database
-        let recipient_ids = self
-            .save_recipient_record(&sent_message)
-            .await
+        let recipient_ids = Self::save_recipient_record(&mut db, &sent_message)
             .expect("Failed to save recipient record");
 
         // Save email record with recipient IDs
-        self.save_email_record_with_recipient_ids(request.subject, request.body, recipient_ids)
-            .await
-            .expect("Failed to save email record");
+        Self::save_email_record_with_recipient_ids(
+            &mut db,
+            request.subject,
+            request.body,
+            recipient_ids,
+        )
+        .expect("Failed to save email record");
 
         Ok(CallToolResult::success(vec![Content::text(
             "Email sent to group successfully!",
@@ -128,15 +129,17 @@ impl MailerService {
         let sent_message = self.mailer.send(&request).await?;
 
         // Save the recipient record in the database
-        let recipient_ids = self
-            .save_recipient_record(&sent_message)
-            .await
+        let recipient_ids = Self::save_recipient_record(&mut db, &sent_message)
             .expect("Failed to save recipient record");
 
         // Save email record with recipient IDs
-        self.save_email_record_with_recipient_ids(request.subject, request.body, recipient_ids)
-            .await
-            .expect("Failed to save email record");
+        Self::save_email_record_with_recipient_ids(
+            &mut db,
+            request.subject,
+            request.body,
+            recipient_ids,
+        )
+        .expect("Failed to save email record");
 
         Ok(CallToolResult::success(vec![Content::text(
             "Email sent with template successfully!",
@@ -486,23 +489,20 @@ impl MailerService {
         let sent_message = self.mailer.send(&email_request).await?;
 
         // Save the recipient record in the database
-        let recipient_ids = self
-            .save_recipient_record(&sent_message)
-            .await
+        let recipient_ids = Self::save_recipient_record(&mut db, &sent_message)
             .expect("Failed to save recipient record");
 
         // Save email record with recipient IDs
-        self.save_email_record_with_recipient_ids(
+        Self::save_email_record_with_recipient_ids(
+            &mut db,
             email_request.subject,
             email_request.body,
             recipient_ids.clone(),
         )
-        .await
         .expect("Failed to save email record");
 
         // Set event attendees in the database
-        self.save_event_attendee(event.id, recipient_ids)
-            .await
+        Self::save_event_attendee(&mut db, event.id, recipient_ids)
             .expect("Failed to save event attendee");
 
         Ok(CallToolResult::success(vec![Content::text(
@@ -512,9 +512,11 @@ impl MailerService {
 
     /// Save recipient records in the database for each email in the sent message.
     /// Returns a vector of recipient IDs.
-    async fn save_recipient_record(&self, sent_message: &Message) -> Result<Vec<i32>, rmcp::Error> {
+    fn save_recipient_record(
+        db: &mut MutexGuard<'_, Database>,
+        sent_message: &Message,
+    ) -> Result<Vec<i32>, rmcp::Error> {
         let mut recipient_ids = Vec::new();
-        let mut db = self.db.lock().await;
 
         for email in sent_message.envelope().to() {
             let email_str = email.to_string();
@@ -534,14 +536,12 @@ impl MailerService {
         Ok(recipient_ids)
     }
 
-    async fn save_email_record_with_recipient_ids(
-        &self,
+    fn save_email_record_with_recipient_ids(
+        db: &mut MutexGuard<'_, Database>,
         email_subject: String,
         email_body: String,
         recipient_ids: Vec<i32>,
     ) -> Result<(), rmcp::Error> {
-        let mut db = self.db.lock().await;
-
         let email_record = db.add_email_record(email_subject, email_body)?;
         for recipient_id in recipient_ids {
             db.add_recipient_email_record(email_record.id, recipient_id)?;
@@ -549,13 +549,11 @@ impl MailerService {
         Ok(())
     }
 
-    async fn save_event_attendee(
-        &self,
+    fn save_event_attendee(
+        db: &mut MutexGuard<'_, Database>,
         event_id: i32,
         recipient_ids: Vec<i32>,
     ) -> Result<(), rmcp::Error> {
-        let mut db = self.db.lock().await;
-
         for recipient_id in recipient_ids {
             db.add_event_attendee(event_id, recipient_id)
                 .map_err(|e| new_rmcp_error(&format!("Failed to add event attendee: {}", e)))?;
