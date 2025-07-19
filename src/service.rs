@@ -17,7 +17,8 @@ use crate::{
     request::{
         CreateEventRequest, GetEmailHistoryRequest, ManageGroupsRequest, ManageRecipientsRequest,
         ManageTemplatesRequest, SendEmailRequest, SendEmailWithTemplateRequest,
-        SendGroupEmailRequest, is_valid_start_end_time, parse_start_end_time,
+        SendEventInvitationRequest, SendGroupEmailRequest, is_valid_start_end_time,
+        parse_start_end_time,
     },
 };
 
@@ -448,6 +449,67 @@ impl MailerService {
         Ok(CallToolResult::success(result))
     }
 
+    #[tool(description = "Send event invitation to a recipient or group")]
+    async fn send_event_invitation(
+        &self,
+        #[tool(aggr)] invitation_request: SendEventInvitationRequest,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        let mut db = self.db.lock().await;
+
+        let event = db
+            .find_event_by_id(invitation_request.event_id)
+            .map_err(|_| new_rmcp_error("Event not found"))?;
+
+        let recipients = invitation_request
+            .to
+            .groups
+            .iter()
+            .filter_map(|group_name| {
+                db.find_group_by_name(group_name.clone())
+                    .ok()
+                    .and_then(|g| db.find_recipients_by_group_id(g.id).ok())
+                    .map(|recipients| recipients.into_iter().map(|r| r.email).collect::<Vec<_>>())
+            })
+            .flatten()
+            .chain(invitation_request.to.individuals)
+            .collect();
+
+        // send invitations via email
+        let email_request = SendEmailRequest {
+            from: invitation_request.from,
+            to: recipients,
+            reply_to: None,
+            subject: invitation_request.subject,
+            body: invitation_request.body,
+        };
+
+        let sent_message = self.mailer.send(&email_request).await?;
+
+        // Save the recipient record in the database
+        let recipient_ids = self
+            .save_recipient_record(&sent_message)
+            .await
+            .expect("Failed to save recipient record");
+
+        // Save email record with recipient IDs
+        self.save_email_record_with_recipient_ids(
+            email_request.subject,
+            email_request.body,
+            recipient_ids.clone(),
+        )
+        .await
+        .expect("Failed to save email record");
+
+        // Set event attendees in the database
+        self.save_event_attendee(event.id, recipient_ids)
+            .await
+            .expect("Failed to save event attendee");
+
+        Ok(CallToolResult::success(vec![Content::text(
+            "Event invitations sent successfully!",
+        )]))
+    }
+
     /// Save recipient records in the database for each email in the sent message.
     /// Returns a vector of recipient IDs.
     async fn save_recipient_record(&self, sent_message: &Message) -> Result<Vec<i32>, rmcp::Error> {
@@ -483,6 +545,20 @@ impl MailerService {
         let email_record = db.add_email_record(email_subject, email_body)?;
         for recipient_id in recipient_ids {
             db.add_recipient_email_record(email_record.id, recipient_id)?;
+        }
+        Ok(())
+    }
+
+    async fn save_event_attendee(
+        &self,
+        event_id: i32,
+        recipient_ids: Vec<i32>,
+    ) -> Result<(), rmcp::Error> {
+        let mut db = self.db.lock().await;
+
+        for recipient_id in recipient_ids {
+            db.add_event_attendee(event_id, recipient_id)
+                .map_err(|e| new_rmcp_error(&format!("Failed to add event attendee: {}", e)))?;
         }
         Ok(())
     }

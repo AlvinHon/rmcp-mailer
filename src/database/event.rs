@@ -23,6 +23,15 @@ impl Database {
             .map_err(MailerError::from)
     }
 
+    pub fn find_event_by_id(&mut self, event_id: i32) -> Result<Event, MailerError> {
+        use schema::events::dsl::*;
+
+        events
+            .filter(id.eq(event_id))
+            .first::<Event>(&mut self.connection)
+            .map_err(MailerError::from)
+    }
+
     pub fn add_event(
         &mut self,
         new_title: String,

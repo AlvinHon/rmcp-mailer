@@ -1,7 +1,4 @@
-use crate::{
-    error::MailerError,
-    model::event_attendee::{EventAttendee, InvitationType},
-};
+use crate::{error::MailerError, model::event_attendee::EventAttendee};
 use diesel::prelude::*;
 
 use super::{Database, schema};
@@ -24,16 +21,11 @@ impl Database {
         &mut self,
         new_event_id: i32,
         new_recipient_id: i32,
-        new_invitation_type: InvitationType,
     ) -> Result<EventAttendee, MailerError> {
         use schema::event_attendees::dsl::*;
 
         diesel::insert_into(event_attendees)
-            .values((
-                event_id.eq(new_event_id),
-                recipient_id.eq(new_recipient_id),
-                invitation_type.eq(new_invitation_type),
-            ))
+            .values((event_id.eq(new_event_id), recipient_id.eq(new_recipient_id)))
             .returning(EventAttendee::as_returning())
             .get_result(&mut self.connection)
             .map_err(MailerError::from)

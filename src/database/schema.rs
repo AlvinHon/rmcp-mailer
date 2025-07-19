@@ -61,7 +61,6 @@ diesel::table! {
         id -> Integer,
         event_id -> Integer,
         recipient_id -> Integer,
-        invitation_type -> Text,
     }
 }
 
@@ -133,7 +132,6 @@ pub(crate) fn create_all_tables_sqls() -> Vec<&'static str> {
                 id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, 
                 event_id INTEGER NOT NULL, 
                 recipient_id INTEGER NOT NULL, 
-                invitation_type TEXT NOT NULL CHECK (invitation_type IN ('Required', 'Optional')),
                 FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
                 FOREIGN KEY (recipient_id) REFERENCES recipients(id) ON DELETE CASCADE
             );",

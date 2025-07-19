@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
 use rmcp::schemars;
+use schemars::JsonSchema;
+use serde::Deserialize;
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct SendEmailRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<String>, // Optional sender email address. If not provided, the default sender will be used.
@@ -12,7 +14,7 @@ pub struct SendEmailRequest {
     pub body: String,
 }
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct SendGroupEmailRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<String>, // Optional sender email address. If not provided, the default sender will be used.
@@ -22,7 +24,7 @@ pub struct SendGroupEmailRequest {
     pub body: String,
 }
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct SendEmailWithTemplateRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<String>, // Optional sender email address. If not provided, the default sender will be used.
@@ -33,44 +35,44 @@ pub struct SendEmailWithTemplateRequest {
     pub template_data: HashMap<String, String>,
 }
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub enum ManageGroupsRequest {
     Add(AddGroupRequest),
     Remove(RemoveGroupRequest),
     Update(UpdateGroupRequest),
 }
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct AddGroupRequest {
     pub name: String,
 }
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct UpdateGroupRequest {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub new_name: Option<String>,
 }
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct RemoveGroupRequest {
     pub name: String,
 }
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub enum ManageRecipientsRequest {
     Add(AddRecipientRequest),
     Remove(RemoveRecipientRequest),
     Update(UpdateRecipientRequest),
 }
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct AddRecipientRequest {
     pub name: String,
     pub email: String,
 }
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct UpdateRecipientRequest {
     pub email: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -79,25 +81,25 @@ pub struct UpdateRecipientRequest {
     pub new_email: Option<String>,
 }
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct RemoveRecipientRequest {
     pub email: String,
 }
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub enum ManageTemplatesRequest {
     Add(AddTemplateRequest),
     Remove(RemoveTemplateRequest),
     Update(UpdateTemplateRequest),
 }
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct AddTemplateRequest {
     pub name: String,
     pub format_string: String,
 }
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct UpdateTemplateRequest {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -106,12 +108,12 @@ pub struct UpdateTemplateRequest {
     pub new_format_string: Option<String>,
 }
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct RemoveTemplateRequest {
     pub name: String,
 }
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetEmailHistoryRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub to: Option<String>,
@@ -209,7 +211,7 @@ pub(crate) fn parse_start_end_time(
     }
 }
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct CreateEventRequest {
     pub title: String,
     pub description: Option<String>,
@@ -219,30 +221,19 @@ pub struct CreateEventRequest {
     pub is_all_day: bool,
 }
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct SendEventInvitationRequest {
+    pub from: Option<String>, // Optional sender email address. If not provided, the default sender will be used.
     pub event_id: i32,
     pub to: SendEventInvitationTo,
     pub subject: String,
-    pub template: InvitationTemplate,
+    pub body: String,
 }
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct SendEventInvitationTo {
-    /// list of groups to send invitations to, where the party is the group name
-    pub groups: Vec<InvitationTarget>,
-    /// list of individuals to send invitations to, where the party is the email address
-    pub individuals: Vec<InvitationTarget>,
-}
-
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct InvitationTarget {
-    pub party: String,
-    pub is_required: bool,
-}
-
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub enum InvitationTemplate {
-    CustomText(String),     // Custom text for the invitation
-    StoredTemplate(String), // Name of the stored template
+    /// Groups to send the invitation to. The string is the group name.
+    pub groups: Vec<String>,
+    /// Individuals to send the invitation to. The string is the individual's user name.
+    pub individuals: Vec<String>,
 }
