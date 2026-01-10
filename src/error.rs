@@ -35,9 +35,9 @@ impl From<diesel::result::Error> for MailerError {
     }
 }
 
-impl From<MailerError> for rmcp::Error {
+impl From<MailerError> for rmcp::ErrorData {
     fn from(error: MailerError) -> Self {
-        rmcp::Error::new(rmcp::model::ErrorCode::INTERNAL_ERROR, error.message, None)
+        rmcp::ErrorData::new(rmcp::model::ErrorCode::INTERNAL_ERROR, error.message, None)
     }
 }
 

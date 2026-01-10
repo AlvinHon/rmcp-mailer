@@ -87,6 +87,12 @@ pub struct RemoveRecipientRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+pub struct AddRecipientToGroupRequest {
+    pub group_name: String,
+    pub email: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
 pub enum ManageTemplatesRequest {
     Add(AddTemplateRequest),
     Remove(RemoveTemplateRequest),
@@ -135,10 +141,10 @@ impl GetEmailHistoryRequest {
         }
 
         // Validate the 'to' field if it is provided
-        if let Some(to) = &self.to {
-            if to.parse::<lettre::Address>().is_err() {
-                return false;
-            }
+        if let Some(to) = &self.to
+            && to.parse::<lettre::Address>().is_err()
+        {
+            return false;
         }
 
         // Validate the start and end dates if they are provided
@@ -168,16 +174,16 @@ pub(crate) fn is_valid_start_end_time(
     }
 
     // If both start_date and end_date are provided, check if start_date is before end_date
-    if let (Some(parsed_start_datetime), Some(parsed_end_datetime)) = (&parsed_start, &parsed_end) {
-        if parsed_start_datetime > parsed_end_datetime {
-            return false;
-        }
+    if let (Some(parsed_start_datetime), Some(parsed_end_datetime)) = (&parsed_start, &parsed_end)
+        && parsed_start_datetime > parsed_end_datetime
+    {
+        return false;
     }
     // If only start date is provided, it must not be future-dated
-    if let Some(parsed_start_datetime) = parsed_start {
-        if parsed_start_datetime > chrono::Utc::now() {
-            return false;
-        }
+    if let Some(parsed_start_datetime) = parsed_start
+        && parsed_start_datetime > chrono::Utc::now()
+    {
+        return false;
     }
 
     true
@@ -219,6 +225,12 @@ pub struct CreateEventRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end_time: Option<chrono::NaiveDateTime>,
     pub is_all_day: bool,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ListEventsRequest {
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]

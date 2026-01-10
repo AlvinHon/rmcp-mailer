@@ -3,8 +3,9 @@ use std::{sync::Arc, vec};
 use lettre::Message;
 use rmcp::{
     ServerHandler,
+    handler::server::{tool::ToolRouter, wrapper::Parameters},
     model::{CallToolResult, Content, ServerCapabilities, ServerInfo},
-    schemars, tool,
+    tool, tool_handler, tool_router,
 };
 use tokio::sync::{Mutex, MutexGuard};
 
@@ -15,23 +16,26 @@ use crate::{
     mailer::Mailer,
     model::{recipient::Recipient, template::Template},
     request::{
-        CreateEventRequest, GetEmailHistoryRequest, ManageGroupsRequest, ManageRecipientsRequest,
-        ManageTemplatesRequest, SendEmailRequest, SendEmailWithTemplateRequest,
-        SendEventInvitationRequest, SendGroupEmailRequest, is_valid_start_end_time,
-        parse_start_end_time,
+        AddRecipientToGroupRequest, CreateEventRequest, GetEmailHistoryRequest, ListEventsRequest,
+        ManageGroupsRequest, ManageRecipientsRequest, ManageTemplatesRequest, SendEmailRequest,
+        SendEmailWithTemplateRequest, SendEventInvitationRequest, SendGroupEmailRequest,
+        is_valid_start_end_time, parse_start_end_time,
     },
 };
 
 #[derive(Debug, Clone)]
 pub struct MailerService {
+    // Required by rmcp
+    tool_router: ToolRouter<Self>,
     mailer: Mailer,
     db: Arc<Mutex<Database>>,
 }
 
-#[tool(tool_box)]
+#[tool_router]
 impl MailerService {
     pub fn new(config: Config) -> Self {
         Self {
+            tool_router: Self::tool_router(),
             mailer: Mailer::new(config.mailer_config),
             db: Arc::new(Mutex::new(Database::new(config.db_config))),
         }
@@ -40,8 +44,8 @@ impl MailerService {
     #[tool(description = "Send an simple plain text email")]
     async fn send_email(
         &self,
-        #[tool(aggr)] email_request: SendEmailRequest,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(email_request): Parameters<SendEmailRequest>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
         let sent_message = self.mailer.send(&email_request).await?;
 
         let mut db = self.db.lock().await;
@@ -66,8 +70,8 @@ impl MailerService {
     #[tool(description = "Send an email to a group")]
     async fn send_email_to_group(
         &self,
-        #[tool(aggr)] email_request: SendGroupEmailRequest,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(email_request): Parameters<SendGroupEmailRequest>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
         let mut db = self.db.lock().await;
         let group = db
             .find_group_by_name(email_request.group_name.clone())
@@ -107,8 +111,8 @@ impl MailerService {
     #[tool(description = "Send an email with template")]
     async fn send_email_with_template(
         &self,
-        #[tool(aggr)] email_request: SendEmailWithTemplateRequest,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(email_request): Parameters<SendEmailWithTemplateRequest>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
         let mut db = self.db.lock().await;
         let res_template = db
             .find_template_by_name(email_request.template_name.clone())
@@ -149,7 +153,7 @@ impl MailerService {
     #[tool(
         description = "Describe the phone book. It includes the information about the recipients and groups"
     )]
-    async fn describe_phone_book(&self) -> Result<CallToolResult, rmcp::Error> {
+    async fn describe_phone_book(&self) -> Result<CallToolResult, rmcp::ErrorData> {
         let (recipients, groups) = {
             let mut db = self.db.lock().await;
             let recipients = db.list_recipients()?;
@@ -175,8 +179,8 @@ impl MailerService {
     #[tool(description = "Manage mail groups: add, remove, update")]
     async fn manage_mail_group(
         &self,
-        #[tool(aggr)] manage_group_request: ManageGroupsRequest,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(manage_group_request): Parameters<ManageGroupsRequest>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
         let mut db = self.db.lock().await;
 
         let result_message = match manage_group_request {
@@ -212,8 +216,8 @@ impl MailerService {
     #[tool(description = "Recipient management: add, remove, update")]
     async fn manage_recipient(
         &self,
-        #[tool(aggr)] manage_recipient_request: ManageRecipientsRequest,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(manage_recipient_request): Parameters<ManageRecipientsRequest>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
         let mut db = self.db.lock().await;
 
         let result_message = match manage_recipient_request {
@@ -253,19 +257,14 @@ impl MailerService {
     #[tool(description = "Add a recipient to the mail group")]
     async fn add_recipient_to_group(
         &self,
-        #[tool(param)]
-        #[schemars(description = "Group name")]
-        group_name: String,
-        #[tool(param)]
-        #[schemars(description = "recipient email")]
-        email: String,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(params): Parameters<AddRecipientToGroupRequest>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
         let mut db = self.db.lock().await;
         let group = db
-            .find_group_by_name(group_name.clone())
+            .find_group_by_name(params.group_name.clone())
             .map_err(|_| new_rmcp_error("Group not found"))?;
         let recipient = db
-            .find_recipient_by_email(email.clone())
+            .find_recipient_by_email(params.email.clone())
             .map_err(|_| new_rmcp_error("Recipient not found"))?;
 
         db.add_recipient_to_group(group.id, recipient.id)?;
@@ -276,7 +275,7 @@ impl MailerService {
     }
 
     #[tool(description = "Describe email templates.")]
-    async fn describe_email_template(&self) -> Result<CallToolResult, rmcp::Error> {
+    async fn describe_email_template(&self) -> Result<CallToolResult, rmcp::ErrorData> {
         let templates = {
             let mut db = self.db.lock().await;
             db.list_templates()?
@@ -293,10 +292,8 @@ impl MailerService {
     #[tool(description = "Get email template")]
     async fn get_email_template(
         &self,
-        #[tool(param)]
-        #[schemars(description = "Template name")]
-        template_name: String,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(template_name): Parameters<String>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
         let template = self
             .db
             .lock()
@@ -313,8 +310,8 @@ impl MailerService {
     #[tool(description = "Manage email template: add, remove, update")]
     async fn manage_email_template(
         &self,
-        #[tool(aggr)] manage_template_request: ManageTemplatesRequest,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(manage_template_request): Parameters<ManageTemplatesRequest>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
         let mut db = self.db.lock().await;
 
         let result_message = match manage_template_request {
@@ -355,10 +352,10 @@ impl MailerService {
     #[tool(description = "Get email records filter by recipients or group by time range")]
     async fn get_email_records(
         &self,
-        #[tool(aggr)] get_email_history_request: GetEmailHistoryRequest,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(get_email_history_request): Parameters<GetEmailHistoryRequest>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
         if !get_email_history_request.is_valid() {
-            return Err(rmcp::Error::from(new_rmcp_error(
+            return Err(rmcp::ErrorData::from(new_rmcp_error(
                 "Invalid request: At least one filter must be provided (to, start_date, end_date)",
             )));
         }
@@ -389,8 +386,8 @@ impl MailerService {
     #[tool(description = "Create an event in the calendar")]
     async fn create_event(
         &self,
-        #[tool(aggr)] event_request: CreateEventRequest,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(event_request): Parameters<CreateEventRequest>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
         let mut db = self.db.lock().await;
 
         let new_event = db.add_event(
@@ -422,17 +419,15 @@ impl MailerService {
     #[tool(description = "List events in the calendar")]
     async fn list_events(
         &self,
-        #[tool(param)]
-        #[schemars(description = "Start date in RFC3339 format")]
-        start_date: Option<String>,
-        #[tool(param)]
-        #[schemars(description = "End date in RFC3339 format")]
-        end_date: Option<String>,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(ListEventsRequest {
+            start_date,
+            end_date,
+        }): Parameters<ListEventsRequest>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
         let mut db = self.db.lock().await;
 
         if !is_valid_start_end_time(start_date.as_ref(), end_date.as_ref()) {
-            return Err(rmcp::Error::from(new_rmcp_error(
+            return Err(rmcp::ErrorData::from(new_rmcp_error(
                 "Invalid request: start_date and end_date must be valid RFC3339 dates with reasonable range",
             )));
         }
@@ -455,8 +450,8 @@ impl MailerService {
     #[tool(description = "Send event invitation to a recipient or group")]
     async fn send_event_invitation(
         &self,
-        #[tool(aggr)] invitation_request: SendEventInvitationRequest,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(invitation_request): Parameters<SendEventInvitationRequest>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
         let mut db = self.db.lock().await;
 
         let event = db
@@ -515,7 +510,7 @@ impl MailerService {
     fn save_recipient_record(
         db: &mut MutexGuard<'_, Database>,
         sent_message: &Message,
-    ) -> Result<Vec<i32>, rmcp::Error> {
+    ) -> Result<Vec<i32>, rmcp::ErrorData> {
         let mut recipient_ids = Vec::new();
 
         for email in sent_message.envelope().to() {
@@ -541,7 +536,7 @@ impl MailerService {
         email_subject: String,
         email_body: String,
         recipient_ids: Vec<i32>,
-    ) -> Result<(), rmcp::Error> {
+    ) -> Result<(), rmcp::ErrorData> {
         let email_record = db.add_email_record(email_subject, email_body)?;
         for recipient_id in recipient_ids {
             db.add_recipient_email_record(email_record.id, recipient_id)?;
@@ -553,7 +548,7 @@ impl MailerService {
         db: &mut MutexGuard<'_, Database>,
         event_id: i32,
         recipient_ids: Vec<i32>,
-    ) -> Result<(), rmcp::Error> {
+    ) -> Result<(), rmcp::ErrorData> {
         for recipient_id in recipient_ids {
             db.add_event_attendee(event_id, recipient_id)
                 .map_err(|e| new_rmcp_error(&format!("Failed to add event attendee: {}", e)))?;
@@ -562,7 +557,7 @@ impl MailerService {
     }
 }
 
-#[tool(tool_box)]
+#[tool_handler]
 impl ServerHandler for MailerService {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
