@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
-    pub sse_server_host: String,
+    pub server_host: String,
     pub db_config: DatabaseConfig,
     pub mailer_config: MailerConfig,
 }
@@ -18,8 +18,8 @@ impl Config {
         };
 
         // Validate the config
-        if config.sse_server_host.is_empty() {
-            panic!("sse_server_host must be set in the config.toml");
+        if config.server_host.is_empty() {
+            panic!("server_host must be set in the config.toml");
         }
 
         if config.db_config.db_path.is_empty() {
@@ -53,7 +53,7 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            sse_server_host: "127.0.0.1:3000".to_string(),
+            server_host: "127.0.0.1:3000".to_string(),
             db_config: Default::default(),
             mailer_config: Default::default(),
         }
@@ -135,7 +135,7 @@ impl Default for DatabaseConfig {
 #[test]
 fn test_toml_config() {
     let toml_str = r#"
-    sse_server_host = "127.0.0.1:3000"
+    server_host = "127.0.0.1:3000"
     [db_config]
     db_path = "mailer.db"
     [mailer_config]
@@ -151,7 +151,7 @@ fn test_toml_config() {
     "#;
 
     let config = toml::from_str::<Config>(toml_str).unwrap();
-    assert_eq!(config.sse_server_host, "127.0.0.1:3000");
+    assert_eq!(config.server_host, "127.0.0.1:3000");
 
     // check [db_config]
     assert_eq!(config.db_config.db_path, "mailer.db");

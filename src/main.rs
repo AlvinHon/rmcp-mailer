@@ -16,7 +16,7 @@ use std::error::Error;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let config = Config::read_from_file();
-    let bind_address = config.sse_server_host.clone();
+    let bind_address = config.server_host.clone();
     let service = StreamableHttpService::new(
         move || Ok(service::MailerService::new(config.clone())),
         LocalSessionManager::default().into(),
