@@ -5,11 +5,6 @@ An example project for a rust-based MCP ([Model Context Protocol](https://modelc
 This is implemented by using the official [rust sdk](https://github.com/modelcontextprotocol/rust-sdk) for MCP (in active development).
 It mainly uses the crate [lettre](https://crates.io/crates/lettre) as the SMTP client under the hood.
 
-TODOs:
-- [ ] add smtp administration
-- [ ] support more request types, e.g. schedule meetings.
-- [ ] add recipient management
-
 ## Usage
 
 This section describes some use cases to show that the MCP server is more interesting than the traditional email programs.

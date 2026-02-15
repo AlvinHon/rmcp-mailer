@@ -16,10 +16,11 @@ use crate::{
     mailer::Mailer,
     model::{recipient::Recipient, template::Template},
     request::{
-        AddRecipientToGroupRequest, CreateEventRequest, GetEmailHistoryRequest, ListEventsRequest,
-        ManageGroupsRequest, ManageRecipientsRequest, ManageTemplatesRequest, SendEmailRequest,
-        SendEmailWithTemplateRequest, SendEventInvitationRequest, SendGroupEmailRequest,
-        is_valid_start_end_time, parse_start_end_time,
+        AddRecipientToGroupRequest, CreateEventRequest, GetEmailHistoryRequest,
+        GetEmailTemplatesRequest, ListEventsRequest, ManageGroupsRequest, ManageRecipientsRequest,
+        ManageTemplatesRequest, SendEmailRequest, SendEmailWithTemplateRequest,
+        SendEventInvitationRequest, SendGroupEmailRequest, is_valid_start_end_time,
+        parse_start_end_time,
     },
 };
 
@@ -292,7 +293,9 @@ impl MailerService {
     #[tool(description = "Get email template")]
     async fn get_email_template(
         &self,
-        Parameters(template_name): Parameters<String>,
+        Parameters(GetEmailTemplatesRequest {
+            name: template_name,
+        }): Parameters<GetEmailTemplatesRequest>,
     ) -> Result<CallToolResult, rmcp::ErrorData> {
         let template = self
             .db
