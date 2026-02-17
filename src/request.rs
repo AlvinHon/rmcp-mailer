@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use rmcp::schemars;
+use rmcp::schemars::{self, Schema, schema_for};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
@@ -140,6 +140,13 @@ pub struct UpdateRecipientRequest {
     pub new_email: Option<String>,
 }
 
+impl UpdateRecipientRequest {
+    pub fn validate_schema(&self) -> Option<Schema> {
+        (self.new_name.is_none() && self.new_email.is_none())
+            .then(|| schema_for!(UpdateRecipientRequest))
+    }
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 #[schemars(description = "Request to remove an existing recipient by their email address.")]
 pub struct RemoveRecipientRequest {
@@ -204,6 +211,13 @@ pub struct UpdateTemplateRequest {
     pub new_format_string: Option<String>,
 }
 
+impl UpdateTemplateRequest {
+    pub fn validate_schema(&self) -> Option<Schema> {
+        (self.new_name.is_none() && self.new_format_string.is_none())
+            .then(|| schema_for!(UpdateTemplateRequest))
+    }
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 #[schemars(description = "Request to remove an existing email template.")]
 pub struct RemoveTemplateRequest {
@@ -233,21 +247,25 @@ pub struct GetEmailHistoryRequest {
 
 impl GetEmailHistoryRequest {
     /// Validates the request by checking that at least one field is provided and that the provided fields are in the correct format.
-    pub fn is_valid(&self) -> bool {
+    pub fn validate_schema(&self) -> Option<Schema> {
         // If all fields are None, the request is considered invalid
         if self.to.is_none() && self.start_date.is_none() && self.end_date.is_none() {
-            return false;
+            return Some(schema_for!(GetEmailHistoryRequest));
         }
 
         // Validate the 'to' field if it is provided
         if let Some(to) = &self.to
             && to.parse::<lettre::Address>().is_err()
         {
-            return false;
+            return Some(schema_for!(GetEmailHistoryRequest));
         }
 
         // Validate the start and end dates if they are provided
-        is_valid_start_end_time(self.start_date.as_ref(), self.end_date.as_ref())
+        if !is_valid_start_end_time(self.start_date.as_ref(), self.end_date.as_ref()) {
+            return Some(schema_for!(GetEmailHistoryRequest));
+        }
+
+        None
     }
 }
 

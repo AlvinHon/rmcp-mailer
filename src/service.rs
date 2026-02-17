@@ -237,6 +237,13 @@ impl MailerService {
                 vec![Content::text("Recipient removed successfully!")]
             }
             ManageRecipientsRequest::Update(update_request) => {
+                if let Some(schema) = update_request.validate_schema() {
+                    return Err(rmcp::ErrorData::from(new_rmcp_error(&format!(
+                        "Invalid request: At least one of new_name or new_email must be provided. Schema: {}",
+                        serde_json::to_string_pretty(&schema).unwrap()
+                    ))));
+                }
+
                 let recipient = db
                     .find_recipient_by_email(update_request.email.clone())
                     .map(|r| Recipient {
@@ -334,6 +341,13 @@ impl MailerService {
                 vec![Content::text("Email template removed successfully!")]
             }
             ManageTemplatesRequest::Update(update_request) => {
+                if let Some(schema) = update_request.validate_schema() {
+                    return Err(rmcp::ErrorData::from(new_rmcp_error(&format!(
+                        "Invalid request: At least one of new_name or new_format_string must be provided. Schema: {}",
+                        serde_json::to_string_pretty(&schema).unwrap()
+                    ))));
+                }
+
                 let template = db
                     .find_template_by_name(update_request.name.clone())
                     .map(|t| Template {
@@ -357,10 +371,11 @@ impl MailerService {
         &self,
         Parameters(get_email_history_request): Parameters<GetEmailHistoryRequest>,
     ) -> Result<CallToolResult, rmcp::ErrorData> {
-        if !get_email_history_request.is_valid() {
-            return Err(rmcp::ErrorData::from(new_rmcp_error(
-                "Invalid request: At least one filter must be provided (to, start_date, end_date)",
-            )));
+        if let Some(schema) = get_email_history_request.validate_schema() {
+            return Err(rmcp::ErrorData::from(new_rmcp_error(&format!(
+                "Invalid request: At least one filter must be provided (to, start_date, end_date). Schema: {}",
+                serde_json::to_string_pretty(&schema).unwrap()
+            ))));
         }
 
         let mut db = self.db.lock().await;
@@ -564,7 +579,14 @@ impl MailerService {
 impl ServerHandler for MailerService {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
-            instructions: Some("send email".into()),
+            instructions: Some(
+                r#"
+This is a mailer service that can send emails,
+manage recipients and groups, handle email templates,
+and manage calendar events.
+You can use the provided tools to interact with the service."#
+                    .to_string(),
+            ),
             capabilities: ServerCapabilities::builder().enable_tools().build(),
             ..Default::default()
         }
