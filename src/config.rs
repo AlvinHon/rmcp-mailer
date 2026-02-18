@@ -7,6 +7,7 @@ pub struct Config {
     pub server_host: String,
     pub db_config: DatabaseConfig,
     pub mailer_config: MailerConfig,
+    pub logger_config: LoggerConfig,
 }
 
 impl Config {
@@ -56,6 +57,9 @@ impl Default for Config {
             server_host: "127.0.0.1:3000".to_string(),
             db_config: Default::default(),
             mailer_config: Default::default(),
+            logger_config: LoggerConfig {
+                file_path: "logs/mailer.log".to_string(),
+            },
         }
     }
 }
@@ -132,6 +136,11 @@ impl Default for DatabaseConfig {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoggerConfig {
+    pub file_path: String,
+}
+
 #[test]
 fn test_toml_config() {
     let toml_str = r#"
@@ -148,6 +157,8 @@ fn test_toml_config() {
     password = "testpassword"
     [[mailer_config.senders]]
     email = "test2@test.com"
+    [logger_config]
+    file_path = "logs/mailer.log"
     "#;
 
     let config = toml::from_str::<Config>(toml_str).unwrap();
@@ -175,4 +186,6 @@ fn test_toml_config() {
 
     assert_eq!(second_sender.email, "test2@test.com");
     assert!(second_sender.credentials.is_none());
+
+    assert_eq!(config.logger_config.file_path, "logs/mailer.log");
 }
