@@ -1,0 +1,22 @@
+# Example log4rs configuration file
+
+refresh_rate: 30 seconds
+
+appenders:
+  file:
+    kind: file
+    path: "logs/mailer.log"
+    encoder:
+      pattern: "{d(%Y-%m-%d %H:%M:%S)} [{l}] {t} - {m}\n"
+
+root:
+  level: info
+  appenders:
+    - file
+
+loggers:
+  my_mcp_server:
+    level: debug
+    appenders:
+      - file
+    additive: false
